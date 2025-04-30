@@ -1,177 +1,21 @@
-.grid {
-  display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(min(30ch, 100%), 1fr));
-
-  container: grid-container / inline-size;
+.upload-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #E8E6E1;
 }
 
-.card:has(> img) {
-  border: 2px solid var(--clr-primary-300);
-
-  @container grid-container (inline-size > calc(30ch * 2 + 1rem)) {
-    grid-column: span 2;
-
-    display: grid;
-    grid-template-columns: subgrid;
-    gap: 0;
-
-    > img {
-      grid-column: 2;
-      grid-row: 1 / 4; 
-    }
-  }
-
-  @container grid-container (inline-size > calc(30ch * 4 + 3rem)) {
-    grid-column: span 2;
-    grid-row: span 2;
-
-    > :not(img) {
-      grid-column: 1 / -1;
-    }
-
-    > img {
-      grid-column: 1 / -1;
-      grid-row: 1;
-      padding-bottom: 1rem;
-    }
-  }
+.drop-zone {
+  border: 2px dashed #ccc;
+  padding: 20px;
+  text-align: center;
+  background-color: #FAF9F7;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.20);
+  cursor: pointer;
 }
 
-@layer general-styling {
-  html {
-    color-scheme: dark light;
-    font-family: system-ui;
-    line-height: 1.6;
-  }
-
-  body {
-    font-size: 1.25rem;
-    margin: 0;
-  }
-
-  img {
-    max-width: 100%;
-    display: block;
-  }
-
-  h1,
-  h2,
-  h3 {
-    font-family: 'Rajdhani', sans-serif;
-    font-weight: 600;
-    font-style: normal;
-    font-optical-sizing: auto;
-    text-transform: uppercase;
-  }
-
-  h1 {
-    font-size: 3rem;
-    line-height: 1.1;
-  }
-
-  h2 {
-    font-size: 2rem;
-  }
-
-  h3 {
-    font-size: 1.5rem;
-  }
-
-  a:not([class]) {
-    justify-self: start;
-    color: white;
-    text-underline-offset: 4px;
-
-    transition: background-size 325ms ease, text-decoration 325ms;
-
-    &:hover,
-    &:focus-visible {
-      text-decoration-color: var(--clr-primary-400);
-      background-size: 100% 1px;
-    }
-  }
-
-  section {
-    padding-block: clamp(2rem, 3vb, 6rem);
-  }
-
-  .btn {
-    display: inline-flex;
-    padding: 1rem 2rem;
-    text-decoration: none;
-    cursor: pointer;
-    background-color: var(--clr-primary-500);
-    color: white;
-
-    &:hover,
-    &:focus-visible {
-      background-color: var(--clr-primary-600);
-    }
-  }
-}
-
-@layer card-styling {
-  * {
-    box-sizing: border-box;
-  }
-
-  .card {
-    --padding: 1rem;
-
-    display: grid;
-    background: hsl(0 0% 50% / 0.2);
-    background-image: linear-gradient(to bottom, transparent 50%, rgb(0 0 0 / 0.3));
-    overflow: hidden;
-    border-radius: 0.25rem;
-
-    h2,
-    h3 {
-      color: var(--clr-primary-200);
-    }
-
-    > img {
-      object-fit: cover;
-      width: 100%;
-      height: 100%;
-    }
-
-    > :not(img) {
-      margin-block-start: 0;
-      margin-inline: 1rem;
-    }
-
-    > :not(img):first-child {
-      margin-block-start: 1rem;
-    }
-
-    > :not(img):last-child {
-      margin-block-end: 1rem;
-    }
-  }
-}
-
-@layer theme {
-  :root {
-    --clr-neutral-900: ;
-
-    --clr-primary-600: hsl(22, 60%, 21%);
-    --clr-primary-500: hsl(22, 60%, 31%);
-    --clr-primary-400: hsl(22, 60%, 41%);
-    --clr-primary-300: hsl(22, 60%, 51%);
-    --clr-primary-200: hsl(22, 60%, 61%);
-  }
-}
-
-@layer layout {
-  .primary-layout {
-    display: grid;
-    grid-template-columns:
-      [full-width] minmax(1rem, 1fr) [content-start] min(1640px, 100% - 2rem)
-      [content-end] minmax(1rem, 1fr);
-
-    & > * {
-      grid-column: 2 / -2;
-    }
-  }
+.error {
+  color: red;
+  margin-top: 10px;
 }
