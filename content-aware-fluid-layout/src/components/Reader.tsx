@@ -18,9 +18,9 @@ const Reader: React.FC<ReaderProps> = ({ pages }) => {
       height={900}
       size="stretch"
       minWidth={315}
-      maxWidth={1000}
+      maxWidth={window.innerWidth}
       minHeight={400}
-      maxHeight={1536}
+      maxHeight={window.innerHeight}
       maxShadowOpacity={0.5}
       showCover={true}
       mobileScrollSupport={false}
@@ -41,7 +41,7 @@ const Reader: React.FC<ReaderProps> = ({ pages }) => {
       {pages.map((page, index) => (
         <div key={index} className="page">
           {page.type === 'img' ? (
-            <img src={page.src} alt={`Page ${index + 1}`} />
+            <img src={page.src} alt={`Page ${index + 1}`}  />
           ) : (
             <div dangerouslySetInnerHTML={{ __html: page.src }} />
           )}

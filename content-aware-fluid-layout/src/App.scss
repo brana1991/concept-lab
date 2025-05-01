@@ -1,3 +1,16 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.App {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background-color: powderblue;
+}
+
 .upload-screen {
   display: flex;
   justify-content: center;
@@ -18,4 +31,12 @@
 .error {
   color: red;
   margin-top: 10px;
+}
+
+.flip-book {
+  height: 100dvh;
+}
+
+.page img {
+  height: 100vh;
 }

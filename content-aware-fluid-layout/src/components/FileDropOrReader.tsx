@@ -1,9 +1,10 @@
 import React from 'react';
 import UploadScreen from './UploadScreen';
-import Reader from './Reader';
 import { useStore } from '../store';
 import { parsePDF } from '../lib/parsePDF';
 import { parseEPUB } from '../lib/parseEPUB';
+import Book from './book';
+import Reader from './Reader';
 
 interface PageContent {
   type: 'img' | 'html';
