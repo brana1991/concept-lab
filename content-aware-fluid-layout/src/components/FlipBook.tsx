@@ -21,7 +21,7 @@ const Paper = ({
   return (
     <div id={`paper-${paperNumber}`} className={`paper ${className}`} style={{ zIndex }}>
       <div className="back">
-        <div className="back-content">
+        <div className="back-content" onClick={() => console.log('clicked')}>
           <h1>{backPage}</h1>
         </div>
       </div>
@@ -66,7 +66,7 @@ export const FlipBook = () => {
         {papers.map((p, index) => {
           const paperNumber = index + 1;
           const isFlipped = flippedPages.includes(paperNumber);
-          const zIndex = isFlipped ? numOfPapers - paperNumber : numOfPapers + paperNumber;
+          const zIndex = isFlipped ? 0 : numOfPapers - paperNumber;
 
           return (
             <Paper

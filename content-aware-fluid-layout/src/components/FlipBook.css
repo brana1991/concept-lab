@@ -19,8 +19,14 @@
       perspective: 1500px;
 
       &.flipped {
+        pointer-events: none;
+
         .front {
           backface-visibility: hidden;
+        }
+
+        .back {
+          pointer-events: all;
         }
 
         .back-content {
