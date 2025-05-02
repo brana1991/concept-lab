@@ -21,7 +21,7 @@ const Paper = ({
   return (
     <div id={`paper-${paperNumber}`} className={`paper ${className}`} style={{ zIndex }}>
       <div className="back">
-        <div className="back-content" onClick={() => console.log('clicked')}>
+        <div className="back-content" onClick={() => onFlip(paperNumber)}>
           <h1>{backPage}</h1>
         </div>
       </div>
@@ -40,9 +40,9 @@ interface Paper {
 }
 
 const papers: Paper[] = [
-  { frontPage: 'Front 1', backPage: 'Back 1' },
-  { frontPage: 'Front 2', backPage: 'Back 2' },
-  { frontPage: 'Front 3', backPage: 'Back 3' },
+  { frontPage: 'Front 1', backPage: 'B1' },
+  { frontPage: 'Front 2', backPage: 'B2' },
+  { frontPage: 'Front 3', backPage: 'B3' },
 ];
 
 export const FlipBook = () => {
@@ -60,27 +60,27 @@ export const FlipBook = () => {
   };
 
   return (
-    <div className="container">
-      <button className="prev">Prev</button>
-      <div className="flipping-book">
-        {papers.map((p, index) => {
-          const paperNumber = index + 1;
-          const isFlipped = flippedPages.includes(paperNumber);
-          const zIndex = isFlipped ? 0 : numOfPapers - paperNumber;
+    <div className="wrapper">
+      <div className="container">
+        <div className="flipping-book">
+          {papers.map((p, index) => {
+            const paperNumber = index + 1;
+            const isFlipped = flippedPages.includes(paperNumber);
+            const zIndex = isFlipped ? 0 : numOfPapers - paperNumber;
 
-          return (
-            <Paper
-              {...p}
-              key={p.frontPage}
-              paperNumber={paperNumber}
-              className={isFlipped ? 'flipped' : ''}
-              onFlip={handleFlip}
-              zIndex={zIndex}
-            />
-          );
-        })}
+            return (
+              <Paper
+                {...p}
+                key={p.frontPage}
+                paperNumber={paperNumber}
+                className={isFlipped ? 'flipped' : ''}
+                onFlip={handleFlip}
+                zIndex={zIndex}
+              />
+            );
+          })}
+        </div>
       </div>
-      <button className="next">Next</button>
     </div>
   );
 };
