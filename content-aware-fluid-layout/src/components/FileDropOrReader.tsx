@@ -28,13 +28,13 @@ const FileDropOrReader: React.FC = () => {
   };
 
   return (
-    <div>
+    <>
       {pages.length === 0 ? (
         <UploadScreen onFileUpload={handleFileUpload} />
       ) : (
         <FlipBook pages={pages} />
       )}
-    </div>
+    </>
   );
 };
 

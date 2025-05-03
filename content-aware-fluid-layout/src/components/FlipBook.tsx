@@ -48,15 +48,11 @@ interface Props {
   pages: PageContent[];
 }
 
-const papers: Paper[] = [
-  { frontPage: 'Front 1', backPage: 'B1' },
-  { frontPage: 'Front 2', backPage: 'B2' },
-  { frontPage: 'Front 3', backPage: 'B3' },
-];
-
 export const FlipBook = ({ pages }: Props) => {
-  const numOfPapers = papers.length;
   const [flippedPages, setFlippedPages] = useState<number[]>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1); // Track the current page
+  const numOfPapers = pages.length;
+  const buffer = 5; // Number of pages to render before and after the current page
 
   const handleFlip = (pageNum: number) => {
     setFlippedPages((prev) => {
@@ -66,6 +62,7 @@ export const FlipBook = ({ pages }: Props) => {
         return [...prev, pageNum];
       }
     });
+    setCurrentPage(pageNum); // Update the current page
   };
 
   return (
@@ -76,6 +73,11 @@ export const FlipBook = ({ pages }: Props) => {
             const paperNumber = index + 1;
             const isFlipped = flippedPages.includes(paperNumber);
             const zIndex = isFlipped ? 0 : numOfPapers - paperNumber;
+
+            // Determine if the page should be rendered
+            if (paperNumber < currentPage - buffer || paperNumber > currentPage + buffer) {
+              return null; // Skip rendering pages outside the buffer range
+            }
 
             const backpage = index === pages.length - 1 ? 'Kraj' : pages[index + 1].src;
 
