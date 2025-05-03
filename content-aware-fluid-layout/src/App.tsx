@@ -1,13 +1,12 @@
-import './App.scss';
-// import FileDropOrReader from './components/FileDropOrReader';
+import  { useEffect, useState } from 'react';
+import pdfjs from 'pdfjs-dist';
 import { FlipBook } from './components/FlipBook';
+import FileDropOrReader from './components/FileDropOrReader';
 
-function App() {
-  return (
-    <div className="App">
-      <FlipBook />
-    </div>
-  );
-}
+const App = () => {
+ 
+
+  return <FileDropOrReader />;
+};
 
 export default App;

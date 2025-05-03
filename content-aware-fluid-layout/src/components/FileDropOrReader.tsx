@@ -3,16 +3,13 @@ import UploadScreen from './UploadScreen';
 import { useStore } from '../store';
 import { parsePDF } from '../lib/parsePDF';
 import { parseEPUB } from '../lib/parseEPUB';
-import Book from './book';
-import Reader from './Reader';
+import { FlipBook, PageContent } from './FlipBook';
 
-interface PageContent {
-  type: 'img' | 'html';
-  src: string;
-}
+
+
 
 const FileDropOrReader: React.FC = () => {
-  const { currentPage, totalPages, setCurrentPage, setTotalPages } = useStore();
+  const { setCurrentPage, setTotalPages } = useStore();
   const [pages, setPages] = React.useState<PageContent[]>([]);
 
   const handleFileUpload = async (file: File) => {
@@ -35,7 +32,7 @@ const FileDropOrReader: React.FC = () => {
       {pages.length === 0 ? (
         <UploadScreen onFileUpload={handleFileUpload} />
       ) : (
-        <Reader pages={pages} />
+        <FlipBook pages={pages} />
       )}
     </div>
   );
