@@ -4,7 +4,6 @@
   "type": "module",
   "dependencies": {
     "sharp": "^0.30.0",
-    "tesseract.js": "^2.1.5",
     "cli-progress": "^3.9.1"
   }
 }
