@@ -24,40 +24,69 @@ async function convertPDF(inputFile, outputDir = '/output') {
     progressBar.start(pageCount, 0);
 
     for (let n = 1; n <= pageCount; n++) {
-      // Rasterize to PNG at 144 and 288 dpi
-      const stem = path.join(outputDir, `000${n.toString().padStart(2, '0')}`);
-      await execAsync(`pdftoppm -png -f ${n} -l ${n} -r 144 "${inputFile}" "${stem}@144"`);
-      await execAsync(`pdftoppm -png -f ${n} -l ${n} -r 288 "${inputFile}" "${stem}@288"`);
+      // Format page number with leading zeros (e.g., 0001, 0002)
+      const pageNum = n.toString().padStart(4, '0');
+      const stem = path.join(outputDir, pageNum);
 
-      console.log('here');
+      try {
+        // Rasterize to PNG at 144 dpi
+        console.log(`Converting page ${n} at 144 dpi...`);
+        const cmd144 = `pdftoppm -png -f ${n} -l ${n} -r 144 "${inputFile}" "${stem}_144"`;
+        console.log(`Executing: ${cmd144}`);
+        await execAsync(cmd144);
 
-      // Convert PNG to WebP
-      await sharp(`${stem}@144-1.png`).webp({ quality: 90, method: 6 }).toFile(`${stem}@144.webp`);
-      await sharp(`${stem}@288-1.png`).webp({ quality: 90, method: 6 }).toFile(`${stem}@288.webp`);
+        // Rasterize to PNG at 288 dpi
+        console.log(`Converting page ${n} at 288 dpi...`);
+        const cmd288 = `pdftoppm -png -f ${n} -l ${n} -r 288 "${inputFile}" "${stem}_288"`;
+        console.log(`Executing: ${cmd288}`);
+        await execAsync(cmd288);
 
-      // Delete PNG files
-      fs.unlinkSync(`${stem}@144-1.png`);
-      fs.unlinkSync(`${stem}@288-1.png`);
+        // Find the actual output files from pdftoppm
+        const files = await fs.promises.readdir(outputDir);
+        const png144 = files.find((f) => f.startsWith(`${pageNum}_144`) && f.endsWith('.png'));
+        const png288 = files.find((f) => f.startsWith(`${pageNum}_288`) && f.endsWith('.png'));
 
-      // Perform OCR on 144 dpi WebP
-      const {
-        data: { text, words },
-      } = await tesseract.recognize(`${stem}@144.webp`, 'eng');
-      const ocrData = words.map((word) => ({
-        text: word.text,
-        bbox: [
-          word.bbox.x0 / word.bbox.width,
-          word.bbox.y0 / word.bbox.height,
-          word.bbox.width / word.bbox.width,
-          word.bbox.height / word.bbox.height,
-        ],
-      }));
+        if (!png144 || !png288) {
+          throw new Error(`PDF conversion failed. Output files not found for page ${pageNum}`);
+        }
 
-      // Save OCR data to JSON
-      fs.writeFileSync(`${stem}.json`, JSON.stringify(ocrData, null, 2));
+        console.log(`Found files: ${png144}, ${png288}`);
 
-      // Update progress bar
-      progressBar.increment();
+        // Convert PNG to WebP
+        await sharp(path.join(outputDir, png144))
+          .webp({ quality: 90, method: 6 })
+          .toFile(`${stem}@144.webp`);
+        await sharp(path.join(outputDir, png288))
+          .webp({ quality: 90, method: 6 })
+          .toFile(`${stem}@288.webp`);
+
+        // Delete PNG files
+        fs.unlinkSync(path.join(outputDir, png144));
+        fs.unlinkSync(path.join(outputDir, png288));
+
+        // Perform OCR on 144 dpi WebP
+        const {
+          data: { text, words },
+        } = await tesseract.recognize(`${stem}@144.webp`, 'eng');
+        const ocrData = words.map((word) => ({
+          text: word.text,
+          bbox: [
+            word.bbox.x0 / word.bbox.width,
+            word.bbox.y0 / word.bbox.height,
+            word.bbox.width / word.bbox.width,
+            word.bbox.height / word.bbox.height,
+          ],
+        }));
+
+        // Save OCR data to JSON
+        fs.writeFileSync(`${stem}.json`, JSON.stringify(ocrData, null, 2));
+
+        // Update progress bar
+        progressBar.increment();
+      } catch (error) {
+        console.error(`Error processing page ${n}:`, error);
+        throw error; // Re-throw to stop the process
+      }
     }
 
     progressBar.stop();
@@ -69,7 +98,11 @@ async function convertPDF(inputFile, outputDir = '/output') {
 
 // Parse command-line arguments
 const args = process.argv.slice(2);
-const inputFile = args[0];
+// Default to /input/1984.pdf if no input file is specified
+const inputFile = args[0] || '/input/1984.pdf';
 const outputDir = args.includes('--out') ? args[args.indexOf('--out') + 1] : '/output';
+
+console.log(`Processing file: ${inputFile}`);
+console.log(`Output directory: ${outputDir}`);
 
 convertPDF(inputFile, outputDir);

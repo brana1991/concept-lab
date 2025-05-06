@@ -20,5 +20,8 @@ RUN npm install --omit=dev
 # Copy the conversion script
 COPY convert.mjs ./
 
+# Define volumes for input and output
+VOLUME ["/input", "/output"]
+
 # Set the entrypoint
 ENTRYPOINT ["node", "convert.mjs"]

@@ -1,0 +1,9 @@
+version: '3'
+
+services:
+  pdf-converter:
+    build: .
+    image: pdf-raster-ocr
+    volumes:
+      - ./sample:/input
+      - ./output:/output
