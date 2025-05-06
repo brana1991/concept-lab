@@ -3,10 +3,10 @@ version: '3'
 services:
   pdf-converter:
     build: .
-    image: pdf-raster-ocr
     volumes:
       - ./sample:/input
       - pdf_output:/output
+      - ./convert.mjs:/app/convert.mjs
     depends_on:
       - postgres
     environment:
@@ -15,6 +15,7 @@ services:
       - PGPASSWORD=postgres
       - PGDATABASE=flipbook
       - PGPORT=5432
+      - NODE_ENV=development
 
   api-server:
     build:
@@ -22,10 +23,11 @@ services:
       dockerfile: Dockerfile.api
     ports:
       - '3000:3000'
-    depends_on:
-      - postgres
     volumes:
       - pdf_output:/output
+      - ./api-server.mjs:/app/api-server.mjs
+    depends_on:
+      - postgres
     environment:
       - PGHOST=postgres
       - PGUSER=postgres
@@ -33,6 +35,8 @@ services:
       - PGDATABASE=flipbook
       - PGPORT=5432
       - PORT=3000
+      - NODE_ENV=development
+    command: node --watch /app/api-server.mjs # Node.js 18+ watch mode
 
   postgres:
     image: postgres:14
