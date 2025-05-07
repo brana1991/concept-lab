@@ -7,6 +7,116 @@ interface EPUBReaderProps {
   theme?: string;
 }
 
+// Types for better type safety
+interface ChapterData {
+  html: string;
+  basePath: string;
+}
+
+// Utility functions
+const createIframe = (container: HTMLDivElement): HTMLIFrameElement => {
+  const iframe = window.document.createElement('iframe');
+  iframe.style.width = '100%';
+  iframe.style.height = '100%';
+  iframe.style.border = 'none';
+  container.appendChild(iframe);
+  return iframe;
+};
+
+const fixRelativePath = (path: string, basePath: string): string => {
+  if (path.startsWith('/')) return path;
+  return `${basePath}${path}`;
+};
+
+const injectStyles = (document: Document, publisherCssPath: string): void => {
+  // Inject theme CSS as a style tag
+  const themeStyle = document.createElement('style');
+  themeStyle.textContent = `
+    html, body {
+      height: 100%;
+      width: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      box-sizing: border-box;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+    .chapter {
+      max-width: 800px;
+      width: 100%;
+    }
+  `;
+  document.head.appendChild(themeStyle);
+
+  // Inject publisher CSS
+  const publisherCssLink = document.createElement('link');
+  publisherCssLink.rel = 'stylesheet';
+  publisherCssLink.href = publisherCssPath;
+  document.head.appendChild(publisherCssLink);
+};
+
+const fetchChapterContent = async (chapterPath: string): Promise<ChapterData> => {
+  const response = await fetch(chapterPath, {
+    headers: {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    },
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to load chapter: ${response.statusText}`);
+  }
+
+  const html = await response.text();
+  const basePath = chapterPath.substring(0, chapterPath.lastIndexOf('/') + 1);
+
+  return { html, basePath };
+};
+
+const processDocumentContent = (doc: Document, basePath: string): void => {
+  // Fix paths in the document
+  doc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+    const href = link.getAttribute('href');
+    if (href) {
+      link.setAttribute('href', fixRelativePath(href, basePath));
+    }
+  });
+
+  doc.querySelectorAll('img').forEach((img) => {
+    const src = img.getAttribute('src');
+    if (src) {
+      img.setAttribute('src', fixRelativePath(src, basePath));
+    }
+  });
+};
+
+const copyContentToIframe = (sourceDoc: Document, iframeDoc: Document): void => {
+  // Copy the head content
+  const headContent = sourceDoc.querySelector('head');
+  if (headContent) {
+    Array.from(headContent.children).forEach((child) => {
+      iframeDoc.head.appendChild(child.cloneNode(true));
+    });
+  }
+
+  // Copy the body content
+  const bodyContent = sourceDoc.querySelector('body');
+  if (bodyContent) {
+    iframeDoc.body.innerHTML = bodyContent.innerHTML;
+  }
+};
+
 export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'default' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [currentChapter, setCurrentChapter] = useState(0);
@@ -19,35 +129,16 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
     if (!containerRef.current || !document) return;
 
     console.log('Initializing reader with document:', document);
-
-    const iframe = window.document.createElement('iframe');
-    iframe.style.width = '100%';
-    iframe.style.height = '100%';
-    iframe.style.border = 'none';
-    containerRef.current.appendChild(iframe);
+    const iframe = createIframe(containerRef.current);
 
     const loadChapter = async () => {
       try {
         setError(null);
-        // Get the chapter path relative to the public directory
         const chapterPath = document.chapters[currentChapter].split('/epub-output/')[1];
         console.log('Loading chapter from:', chapterPath);
 
-        const response = await fetch(chapterPath, {
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            Pragma: 'no-cache',
-            Expires: '0',
-          },
-          cache: 'no-store',
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to load chapter: ${response.statusText}`);
-        }
-
-        const html = await response.text();
-        console.log('Loaded HTML:', html.substring(0, 200) + '...'); // Log first 200 chars
+        const { html, basePath } = await fetchChapterContent(chapterPath);
+        console.log('Loaded HTML:', html.substring(0, 200) + '...');
 
         if (!iframe.contentDocument) {
           throw new Error('Could not access iframe content document');
@@ -57,82 +148,19 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'application/xhtml+xml');
 
-        // Get the base path for this chapter
-        const chapterBasePath = chapterPath.substring(0, chapterPath.lastIndexOf('/') + 1);
+        // Process document content
+        processDocumentContent(doc, basePath);
 
-        // Function to fix relative paths
-        const fixRelativePath = (path: string) => {
-          if (path.startsWith('/')) return path;
-          return `${chapterBasePath}${path}`;
-        };
-
-        // Fix paths in the document
-        doc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
-          const href = link.getAttribute('href');
-          if (href) {
-            link.setAttribute('href', fixRelativePath(href));
-          }
-        });
-
-        doc.querySelectorAll('img').forEach((img) => {
-          const src = img.getAttribute('src');
-          if (src) {
-            img.setAttribute('src', fixRelativePath(src));
-          }
-        });
-
-        // Clear existing content
+        // Clear and prepare iframe
         iframe.contentDocument.open();
         iframe.contentDocument.write('<!DOCTYPE html><html><head></head><body></body></html>');
         iframe.contentDocument.close();
 
-        // Inject theme CSS as a style tag
-        const themeStyle = iframe.contentDocument.createElement('style');
-        themeStyle.textContent = `
-          html, body {
-            height: 100%;
-            width: 100%;
-            margin: 0;
-            padding: 0;
-          }
-          body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            box-sizing: border-box;
-          }
-          img {
-            max-width: 100%;
-            height: auto;
-          }
-          .chapter {
-            max-width: 800px;
-            width: 100%;
-          }
-        `;
-        iframe.contentDocument.head.appendChild(themeStyle);
+        // Inject styles
+        injectStyles(iframe.contentDocument, document.css.split('/epub-output/')[1]);
 
-        // Then inject publisher CSS
-        const publisherCssLink = iframe.contentDocument.createElement('link');
-        publisherCssLink.rel = 'stylesheet';
-        publisherCssLink.href = document.css.split('/epub-output/')[1];
-        iframe.contentDocument.head.appendChild(publisherCssLink);
-
-        // Copy the head content
-        const headContent = doc.querySelector('head');
-        if (headContent) {
-          Array.from(headContent.children).forEach((child) => {
-            iframe.contentDocument?.head.appendChild(child.cloneNode(true));
-          });
-        }
-
-        // Copy the body content
-        const bodyContent = doc.querySelector('body');
-        if (bodyContent) {
-          iframe.contentDocument.body.innerHTML = bodyContent.innerHTML;
-        }
+        // Copy content to iframe
+        copyContentToIframe(doc, iframe.contentDocument);
       } catch (error) {
         console.error('Error loading chapter:', error);
         setError(error instanceof Error ? error.message : 'Failed to load chapter');
