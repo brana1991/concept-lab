@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useEPUBDocument } from '../lib/queries';
+import '../../public/themes/default.css'; // Import the theme CSS
 
 interface EPUBReaderProps {
   documentId: number;
@@ -56,10 +57,68 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'application/xhtml+xml');
 
+        // Get the base path for this chapter
+        const chapterBasePath = chapterPath.substring(0, chapterPath.lastIndexOf('/') + 1);
+
+        // Function to fix relative paths
+        const fixRelativePath = (path: string) => {
+          if (path.startsWith('/')) return path;
+          return `${chapterBasePath}${path}`;
+        };
+
+        // Fix paths in the document
+        doc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
+          const href = link.getAttribute('href');
+          if (href) {
+            link.setAttribute('href', fixRelativePath(href));
+          }
+        });
+
+        doc.querySelectorAll('img').forEach((img) => {
+          const src = img.getAttribute('src');
+          if (src) {
+            img.setAttribute('src', fixRelativePath(src));
+          }
+        });
+
         // Clear existing content
         iframe.contentDocument.open();
         iframe.contentDocument.write('<!DOCTYPE html><html><head></head><body></body></html>');
         iframe.contentDocument.close();
+
+        // Inject theme CSS as a style tag
+        const themeStyle = iframe.contentDocument.createElement('style');
+        themeStyle.textContent = `
+          html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+          }
+          body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            box-sizing: border-box;
+          }
+          img {
+            max-width: 100%;
+            height: auto;
+          }
+          .chapter {
+            max-width: 800px;
+            width: 100%;
+          }
+        `;
+        iframe.contentDocument.head.appendChild(themeStyle);
+
+        // Then inject publisher CSS
+        const publisherCssLink = iframe.contentDocument.createElement('link');
+        publisherCssLink.rel = 'stylesheet';
+        publisherCssLink.href = document.css.split('/epub-output/')[1];
+        iframe.contentDocument.head.appendChild(publisherCssLink);
 
         // Copy the head content
         const headContent = doc.querySelector('head');
@@ -74,17 +133,6 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
         if (bodyContent) {
           iframe.contentDocument.body.innerHTML = bodyContent.innerHTML;
         }
-
-        // Inject CSS
-        const publisherCssLink = iframe.contentDocument.createElement('link');
-        publisherCssLink.rel = 'stylesheet';
-        publisherCssLink.href = document.css.split('/epub-output/')[1];
-        iframe.contentDocument.head.appendChild(publisherCssLink);
-
-        const themeCssLink = iframe.contentDocument.createElement('link');
-        themeCssLink.rel = 'stylesheet';
-        themeCssLink.href = `/themes/${theme}.css`;
-        iframe.contentDocument.head.appendChild(themeCssLink);
       } catch (error) {
         console.error('Error loading chapter:', error);
         setError(error instanceof Error ? error.message : 'Failed to load chapter');

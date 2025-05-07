@@ -13,4 +13,13 @@ export default defineConfig({
   },
   // Serve static files from epub-output directory
   publicDir: path.resolve(__dirname, '../epub-output'),
+  // Configure static file serving
+  build: {
+    assetsDir: 'assets',
+    rollupOptions: {
+      output: {
+        assetFileNames: 'assets/[name][extname]',
+      },
+    },
+  },
 });

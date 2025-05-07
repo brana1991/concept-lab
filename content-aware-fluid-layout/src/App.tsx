@@ -7,7 +7,9 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <FileDropOrReader />
+      <div style={{ height: '100dvh' }}>
+        <FileDropOrReader />
+      </div>
     </QueryClientProvider>
   );
 }
