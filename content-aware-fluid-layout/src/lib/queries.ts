@@ -16,6 +16,21 @@ export function useDocument(id: number) {
   });
 }
 
+export function useEPUBDocuments() {
+  return useQuery({
+    queryKey: ['epub-documents'],
+    queryFn: () => api.getEPUBDocuments(),
+  });
+}
+
+export function useEPUBDocument(id: number) {
+  return useQuery({
+    queryKey: ['epub-document', id],
+    queryFn: () => api.getEPUBDocument(id),
+    enabled: !!id,
+  });
+}
+
 export function usePageImage(documentId: number, pageNumber: number, dpi: 144 | 288 = 144) {
   return useQuery({
     queryKey: ['page-image', documentId, pageNumber, dpi],
