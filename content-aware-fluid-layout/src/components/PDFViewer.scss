@@ -1,0 +1,107 @@
+.pdf-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+
+  .pdf-viewer-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    gap: 15px;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+
+    button {
+      padding: 8px 12px;
+      background-color: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+
+      &:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+
+      &:hover:not(:disabled) {
+        background-color: #106ebe;
+      }
+    }
+
+    span {
+      font-size: 14px;
+      color: #333;
+    }
+  }
+
+  .pdf-viewer-pages {
+    flex: 1;
+    background-color: #e6e6e6;
+    position: relative;
+
+    .page-container {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      background-color: white;
+      margin: 0 10px;
+      position: relative;
+    }
+  }
+
+  .selected-text-container {
+    display: flex;
+    align-items: center;
+    background-color: #f0f7ff;
+    border: 1px solid #cce0ff;
+    padding: 10px 15px;
+    border-radius: 4px;
+    position: relative;
+    margin: 0 20px;
+
+    .selected-text {
+      flex: 1;
+      font-size: 14px;
+      line-height: 1.5;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    .copy-button {
+      padding: 5px 10px;
+      background-color: #0078d4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      margin-left: 10px;
+      cursor: pointer;
+
+      &:hover {
+        background-color: #106ebe;
+      }
+    }
+
+    .close-button {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: transparent;
+      border: none;
+      border-radius: 50%;
+      color: #888;
+      margin-left: 5px;
+      cursor: pointer;
+      font-size: 14px;
+
+      &:hover {
+        background-color: #f2f2f2;
+        color: #333;
+      }
+    }
+  }
+}

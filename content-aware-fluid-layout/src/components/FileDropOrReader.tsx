@@ -5,9 +5,6 @@ import { parsePDF } from '../lib/parsePDF';
 import { parseEPUB } from '../lib/parseEPUB';
 import { FlipBook, PageContent } from './FlipBook';
 
-
-
-
 const FileDropOrReader: React.FC = () => {
   const { setCurrentPage, setTotalPages } = useStore();
   const [pages, setPages] = React.useState<PageContent[]>([]);
@@ -21,7 +18,7 @@ const FileDropOrReader: React.FC = () => {
       const htmlData = await parseEPUB(file);
       parsedPages = htmlData.map((src) => ({ type: 'html', src }));
     }
-    console.log('Parsed Pages:', parsedPages);
+
     setPages(parsedPages);
     setTotalPages(parsedPages.length);
     setCurrentPage(1);

@@ -1,0 +1,25 @@
+{
+  "title": "Gospodar muva",
+  "author": "Vilijem Golding",
+  "chapters": [
+    "chapters/001.html",
+    "chapters/002.html",
+    "chapters/003.html",
+    "chapters/004.html",
+    "chapters/005.html",
+    "chapters/006.html",
+    "chapters/007.html",
+    "chapters/008.html",
+    "chapters/009.html",
+    "chapters/010.html",
+    "chapters/011.html",
+    "chapters/012.html",
+    "chapters/013.html",
+    "chapters/014.html",
+    "chapters/015.html",
+    "chapters/016.html",
+    "chapters/notes.html"
+  ],
+  "css": "css/book.css",
+  "cover": "images/cover.jpg"
+}

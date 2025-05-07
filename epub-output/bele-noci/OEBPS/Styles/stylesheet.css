@@ -1,0 +1,63 @@
+body {
+ 	font-family : serif;
+}
+h1 {
+ 	font-size : 1.3em;
+	font-weight: normal;
+ 	color : #2e323a;
+ 	text-align : center;
+ 	padding-bottom : 1em;
+ 	padding-top : 2.5em;
+ 	font-family : serif;
+}
+p {
+ 	margin-top: 0em;
+ 	margin-bottom: 0em;
+	padding-bottom: 0;
+	text-indent: 1.5em;
+ 	text-align: justify;
+}
+.centar {
+ 	text-align: center;
+	text-indent: 0em;
+}
+.autor {
+ 	font-size : 1.5em;
+ 	color : #2e323a;
+ 	display: block;
+ 	text-align: center;
+ 	text-indent: 0;
+ 	padding: 0;
+ 	margin-top: 1.5em;
+ 	margin-bottom: 1em;
+}
+.naslov {
+ 	font-size : 2.1em;
+	font-weight: bold;
+ 	color: red;
+ 	display: block;
+ 	text-align: center;
+ 	text-indent: 0;
+ 	padding: 0;
+ 	margin-top: 0.5em;
+ 	margin-bottom: 0;
+}
+.podnaslov {
+ 	font-size : 1.2em;
+ 	font-weight: bold;
+ 	color : #2e323a;
+ 	display: block;
+ 	text-align: center;
+ 	text-indent: 0;
+ 	padding: 0;
+ 	margin-top: 0.5em;
+ 	margin-bottom: 1em;
+}
+a:link {
+	color : #CD3333;
+}
+.cover {
+	text-indent: 0;
+	text-align: center;
+	padding-bottom: 0;
+   }
