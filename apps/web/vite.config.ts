@@ -11,8 +11,8 @@ export default defineConfig({
       allow: ['..'],
     },
   },
-  // Serve static files from epub-output directory
-  publicDir: path.resolve(__dirname, '../epub-output'),
+  // Serve static files from the API output directories
+  publicDir: path.resolve(__dirname, '../api/src'),
   // Configure static file serving
   build: {
     assetsDir: 'assets',

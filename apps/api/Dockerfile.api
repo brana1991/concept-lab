@@ -1,21 +1,30 @@
 # Use Node.js 18 as the base image
 FROM node:18-slim
 
-# Install PostgreSQL client
-RUN apt-get update && apt-get install -y libpq-dev
+# Install PostgreSQL client and other dependencies
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    tesseract-ocr \
+    poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app
 
-# Copy package.json and install Node.js dependencies
-COPY package.json ./
+# Copy package files
+COPY apps/api/package*.json ./
+
+# Install dependencies
 RUN npm install
 
-# Copy the API server script
-COPY api-server.mjs ./
+# Create output directories in their respective source locations
+RUN mkdir -p /app/src/epub/output /app/src/ocr/output
+
+# Copy the API source code
+COPY apps/api/src ./src
 
 # Expose API port
 EXPOSE 3000
 
 # Set the entrypoint
-CMD ["node", "api-server.mjs"] 
+CMD ["node", "src/api-server.mjs"] 
