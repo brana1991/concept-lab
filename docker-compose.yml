@@ -1,31 +1,29 @@
 version: '3'
 
 services:
-  pdf-converter:
-    build: .
-    image: pdf-raster-ocr
-    volumes:
-      - ./sample:/input
-      - pdf_output:/output
-    depends_on:
-      - postgres
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    ports:
+      - '5173:5173'
     environment:
-      - PGHOST=postgres
-      - PGUSER=postgres
-      - PGPASSWORD=postgres
-      - PGDATABASE=flipbook
-      - PGPORT=5432
+      - VITE_API_URL=http://api:3000
+    depends_on:
+      - api-server
 
   api-server:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: apps/api/Dockerfile.api
     ports:
       - '3000:3000'
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     volumes:
-      - pdf_output:/output
+      - ./apps/api/src/ocr/output:/app/src/ocr/output
+      - ./apps/api/src/epub/output:/app/src/epub/output
     environment:
       - PGHOST=postgres
       - PGUSER=postgres
@@ -44,8 +42,12 @@ services:
       - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./apps/api/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres-data:
-  pdf_output:

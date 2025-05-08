@@ -1,33 +1,35 @@
 version: '3'
 
 services:
-  pdf-converter:
-    build: .
-    volumes:
-      - ./sample:/input
-      - pdf_output:/output
-      - ./convert.mjs:/app/convert.mjs
-    depends_on:
-      - postgres
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
+    ports:
+      - '5173:5173'
     environment:
-      - PGHOST=postgres
-      - PGUSER=postgres
-      - PGPASSWORD=postgres
-      - PGDATABASE=flipbook
-      - PGPORT=5432
+      - VITE_API_URL=http://api:3000
       - NODE_ENV=development
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+    depends_on:
+      - api-server
 
   api-server:
     build:
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: apps/api/Dockerfile.api.dev
     ports:
       - '3000:3000'
-    volumes:
-      - pdf_output:/output
-      - ./api-server.mjs:/app/api-server.mjs
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./apps/api:/app
+      - /app/node_modules
+      - ./apps/api/src/ocr/output:/app/src/ocr/output
+      - ./apps/api/src/epub/output:/app/src/epub/output
     environment:
       - PGHOST=postgres
       - PGUSER=postgres
@@ -36,7 +38,6 @@ services:
       - PGPORT=5432
       - PORT=3000
       - NODE_ENV=development
-    command: node --watch /app/api-server.mjs # Node.js 18+ watch mode
 
   postgres:
     image: postgres:14
@@ -48,8 +49,12 @@ services:
       - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./apps/api/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres-data:
-  pdf_output:
