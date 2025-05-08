@@ -1,6 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import pg from 'pg';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -16,8 +21,42 @@ const pool = new Pool({
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'HEAD', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Accept', 'Cache-Control', 'Expires', 'Pragma'],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
+  credentials: true,
+  maxAge: 86400 // 24 hours
+}));
 app.use(express.json());
+
+// Serve static files from the EPUB output directory with proper headers
+app.use('/epub', (req, res, next) => {
+  // Set CORS headers for static files
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Accept, Cache-Control, Expires, Pragma');
+  res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  
+  // Set caching headers
+  res.setHeader('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+  res.setHeader('Vary', 'Accept-Encoding');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  
+  next();
+}, express.static(path.join(__dirname, 'epub', 'output'), {
+  // Enable directory listing for debugging
+  dotfiles: 'deny',
+  etag: true,
+  lastModified: true,
+  maxAge: '1h'
+}));
 
 // GET list of documents
 app.get('/api/documents', async (req, res) => {

@@ -144,7 +144,6 @@ async function processChapter(filePath: string, chapterPrefix: string): Promise<
 
   const $ = cheerio.load(content, {
     xmlMode: true,
-    decodeEntities: false,
   });
   let idCounter = 1;
 
@@ -174,15 +173,25 @@ async function processChapter(filePath: string, chapterPrefix: string): Promise<
     });
   });
 
-  // Fix relative paths
-  $('link[href^="../Styles/"]').attr('href', (_, href) => String(href).replace('../Styles/', 'OEBPS/Styles/'));
-  $('link[href^="../Images/"]').attr('href', (_, href) =>
-    String(href).replace('../Images/', 'OEBPS/Images/'),
-  );
-  $('a[href^="../Text/"]').attr('href', (_, href) =>
-    String(href).replace('../Text/', 'OEBPS/Text/'),
-  );
-  $('img[src^="../Images/"]').attr('src', (_, src) => String(src).replace('../Images/', 'OEBPS/Images/'));
+  // Fix OEBPS paths to be absolute
+  const bookDir = path.basename(path.dirname(path.dirname(path.dirname(filePath))));
+  
+  // Handle img and link tags
+  $('img').each((_, el) => {
+    const src = $(el).attr('src');
+    if (src && typeof src === 'string') {
+      const filename = path.basename(src);
+      $(el).attr('src', `${STATIC_BASE_URL}/epub/${bookDir}/OEBPS/Images/${filename}`);
+    }
+  });
+
+  $('link').each((_, el) => {
+    const href = $(el).attr('href');
+    if (href && typeof href === 'string') {
+      const filename = path.basename(href);
+      $(el).attr('href', `${STATIC_BASE_URL}/epub/${bookDir}/OEBPS/Styles/${filename}`);
+    }
+  });
 
   const processedContent = $.html();
   console.log('\n=== Processed HTML Preview ===');

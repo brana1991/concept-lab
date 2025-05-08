@@ -7,16 +7,15 @@ RUN apt-get update && apt-get install -y libpq-dev
 # Set the working directory
 WORKDIR /app
 
-# Copy package.json and install Node.js dependencies
-COPY package.json ./
+# Copy package files
+COPY apps/api/package*.json ./
+
+# Install dependencies
 RUN npm install
 RUN npm install -g nodemon
-
-# Copy the API server script
-COPY api-server.mjs ./
 
 # Expose API port
 EXPOSE 3000
 
 # Set the entrypoint with live reload
-CMD ["nodemon", "--watch", "/app", "api-server.mjs"] 
+CMD ["nodemon", "--watch", "/app/src", "--ext", "mjs,js,json", "src/api-server.mjs"] 

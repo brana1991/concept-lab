@@ -1,4 +1,5 @@
 const API_BASE_URL = 'http://localhost:3000/api';
+export const STATIC_BASE_URL = 'http://localhost:3000';
 
 export interface OCRBox {
   text: string;
@@ -29,7 +30,7 @@ interface EPUBDocument {
   author: string;
   epubPath: string;
   chapters: string[];
-  css: string;
+  css: string[];
   cover: string;
   createdAt: string;
 }
@@ -40,47 +41,47 @@ const mockEPUBDocuments: EPUBDocument[] = [
     id: 1,
     title: 'Bele noći',
     author: 'Fjodor Mihajlovič Dostojevski',
-    epubPath: '/epub-output/bele-noci/Bele_noci.epub',
+    epubPath: `${STATIC_BASE_URL}/epub/bele-noci/manifest.json`,
     chapters: [
-      '/epub-output/bele-noci/OEBPS/Text/cover.xhtml',
-      '/epub-output/bele-noci/OEBPS/Text/Jutro.xhtml',
-      '/epub-output/bele-noci/OEBPS/Text/Naslov.xhtml',
-      '/epub-output/bele-noci/OEBPS/Text/Nastjenjkina_istorija.xhtml',
-      '/epub-output/bele-noci/OEBPS/Text/Noc_cetvrta.xhtml',
-      '/epub-output/bele-noci/OEBPS/Text/Noc_druga.xhtml',
-      '/epub-output/bele-noci/OEBPS/Text/Noc_prva.xhtml',
-      '/epub-output/bele-noci/OEBPS/Text/Noc_treca.xhtml',
+      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/cover.xhtml`,
+      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Jutro.xhtml`,
+      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Naslov.xhtml`,
+      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Nastjenjkina_istorija.xhtml`,
+      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Noc_cetvrta.xhtml`,
+      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Noc_druga.xhtml`,
+      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Noc_prva.xhtml`,
+      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Noc_treca.xhtml`,
     ],
-    css: '/epub-output/bele-noci/OEBPS/Styles/book.css',
-    cover: '/epub-output/bele-noci/OEBPS/Images/cover.jpg',
+    css: [`${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Styles/style.css`],
+    cover: `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Images/cover.jpg`,
     createdAt: new Date().toISOString(),
   },
   {
     id: 2,
     title: 'Gospodar muva',
     author: 'Vilijem Golding',
-    epubPath: '/epub-output/gospodar-muva/Gospodar_muva.epub',
+    epubPath: `${STATIC_BASE_URL}/epub/gospodar-muha/manifest.json`,
     chapters: [
-      '/epub-output/gospodar-muva/OEBPS/Text/001.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/002.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/003.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/004.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/005.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/006.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/007.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/008.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/009.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/010.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/011.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/012.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/013.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/014.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/015.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/016.html',
-      '/epub-output/gospodar-muva/OEBPS/Text/notes.html',
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/001.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/002.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/003.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/004.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/005.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/006.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/007.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/008.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/009.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/010.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/011.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/012.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/013.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/014.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/015.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/016.html`,
+      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/notes.html`,
     ],
-    css: '/epub-output/gospodar-muva/OEBPS/Styles/style.css',
-    cover: '/epub-output/gospodar-muva/OEBPS/Images/cover.jpg',
+    css: [`${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Styles/style.css`],
+    cover: `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Images/cover.jpg`,
     createdAt: new Date().toISOString(),
   },
 ];

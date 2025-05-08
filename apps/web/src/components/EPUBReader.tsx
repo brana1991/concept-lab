@@ -10,7 +10,6 @@ interface EPUBReaderProps {
 // Types for better type safety
 interface ChapterData {
   html: string;
-  basePath: string;
 }
 
 // Utility functions
@@ -23,12 +22,7 @@ const createIframe = (container: HTMLDivElement): HTMLIFrameElement => {
   return iframe;
 };
 
-const fixRelativePath = (path: string, basePath: string): string => {
-  if (path.startsWith('/')) return path;
-  return `${basePath}${path}`;
-};
-
-const injectStyles = (document: Document, publisherCssPath: string): void => {
+const injectStyles = (document: Document, cssPaths: string[]): void => {
   // Inject theme CSS as a style tag
   const themeStyle = document.createElement('style');
   themeStyle.textContent = `
@@ -57,11 +51,13 @@ const injectStyles = (document: Document, publisherCssPath: string): void => {
   `;
   document.head.appendChild(themeStyle);
 
-  // Inject publisher CSS
-  const publisherCssLink = document.createElement('link');
-  publisherCssLink.rel = 'stylesheet';
-  publisherCssLink.href = publisherCssPath;
-  document.head.appendChild(publisherCssLink);
+  // Inject all publisher CSS files
+  cssPaths.forEach(cssPath => {
+    const publisherCssLink = document.createElement('link');
+    publisherCssLink.rel = 'stylesheet';
+    publisherCssLink.href = cssPath;
+    document.head.appendChild(publisherCssLink);
+  });
 };
 
 const fetchChapterContent = async (chapterPath: string): Promise<ChapterData> => {
@@ -79,26 +75,7 @@ const fetchChapterContent = async (chapterPath: string): Promise<ChapterData> =>
   }
 
   const html = await response.text();
-  const basePath = chapterPath.substring(0, chapterPath.lastIndexOf('/') + 1);
-
-  return { html, basePath };
-};
-
-const processDocumentContent = (doc: Document, basePath: string): void => {
-  // Fix paths in the document
-  doc.querySelectorAll('link[rel="stylesheet"]').forEach((link) => {
-    const href = link.getAttribute('href');
-    if (href) {
-      link.setAttribute('href', fixRelativePath(href, basePath));
-    }
-  });
-
-  doc.querySelectorAll('img').forEach((img) => {
-    const src = img.getAttribute('src');
-    if (src) {
-      img.setAttribute('src', fixRelativePath(src, basePath));
-    }
-  });
+  return { html };
 };
 
 const copyContentToIframe = (sourceDoc: Document, iframeDoc: Document): void => {
@@ -134,10 +111,10 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
     const loadChapter = async () => {
       try {
         setError(null);
-        const chapterPath = document.chapters[currentChapter].split('/epub-output/')[1];
+        const chapterPath = document.chapters[currentChapter];
         console.log('Loading chapter from:', chapterPath);
 
-        const { html, basePath } = await fetchChapterContent(chapterPath);
+        const { html } = await fetchChapterContent(chapterPath);
         console.log('Loaded HTML:', html.substring(0, 200) + '...');
 
         if (!iframe.contentDocument) {
@@ -148,16 +125,13 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'application/xhtml+xml');
 
-        // Process document content
-        processDocumentContent(doc, basePath);
-
         // Clear and prepare iframe
         iframe.contentDocument.open();
         iframe.contentDocument.write('<!DOCTYPE html><html><head></head><body></body></html>');
         iframe.contentDocument.close();
 
         // Inject styles
-        injectStyles(iframe.contentDocument, document.css.split('/epub-output/')[1]);
+        injectStyles(iframe.contentDocument, document.css);
 
         // Copy content to iframe
         copyContentToIframe(doc, iframe.contentDocument);
