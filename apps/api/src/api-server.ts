@@ -1,8 +1,10 @@
-import express from 'express';
+import express, { Request, Response, NextFunction, RequestHandler } from 'express';
 import cors from 'cors';
 import pg from 'pg';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createEPUBRoutes } from './epub/epub.routes';
+import { EPUBService } from './epub/epub.service';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,13 +19,13 @@ const pool = new Pool({
   user: process.env.PGUSER || 'postgres',
   password: process.env.PGPASSWORD || 'postgres',
   database: process.env.PGDATABASE || 'flipbook',
-  port: process.env.PGPORT || 5432,
+  port: process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432,
 });
 
 // Middleware
 app.use(cors({
   origin: '*',
-  methods: ['GET', 'HEAD', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'HEAD', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Accept', 'Cache-Control', 'Expires', 'Pragma'],
   exposedHeaders: ['Content-Length', 'Content-Type'],
   credentials: true,
@@ -32,7 +34,7 @@ app.use(cors({
 app.use(express.json());
 
 // Serve static files from the EPUB output directory with proper headers
-app.use('/epub', (req, res, next) => {
+app.use('/epub', ((req: Request, res: Response, next: NextFunction) => {
   // Set CORS headers for static files
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
@@ -50,7 +52,7 @@ app.use('/epub', (req, res, next) => {
   }
   
   next();
-}, express.static(path.join(__dirname, 'epub', 'output'), {
+}) as RequestHandler, express.static(path.join(__dirname, 'epub', 'output'), {
   // Enable directory listing for debugging
   dotfiles: 'deny',
   etag: true,
@@ -58,10 +60,22 @@ app.use('/epub', (req, res, next) => {
   maxAge: '1h'
 }));
 
+// Initialize EPUB service and routes
+const epubService = new EPUBService(pool);
+app.use('/api/epub', createEPUBRoutes(epubService));
+
+interface Document {
+  id: number;
+  filename: string;
+  title: string;
+  total_pages: number;
+  created_at: Date;
+}
+
 // GET list of documents
-app.get('/api/documents', async (req, res) => {
+app.get('/api/documents', (async (req: Request, res: Response) => {
   try {
-    const result = await pool.query(
+    const result = await pool.query<Document>(
       'SELECT id, filename, title, total_pages, created_at FROM documents ORDER BY created_at DESC',
     );
     res.json(result.rows);
@@ -69,13 +83,13 @@ app.get('/api/documents', async (req, res) => {
     console.error('Error fetching documents:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+}) as RequestHandler);
 
 // GET document by ID
-app.get('/api/documents/:id', async (req, res) => {
+app.get('/api/documents/:id', (async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const result = await pool.query(
+    const result = await pool.query<Document>(
       'SELECT id, filename, title, total_pages, created_at FROM documents WHERE id = $1',
       [id],
     );
@@ -89,13 +103,22 @@ app.get('/api/documents/:id', async (req, res) => {
     console.error('Error fetching document:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+}) as RequestHandler);
+
+interface Page {
+  id: number;
+  document_id: number;
+  page_number: number;
+  image_low_res: Buffer;
+  image_high_res: Buffer;
+  ocr_data: any;
+}
 
 // GET page metadata (without images) by document ID and page number
-app.get('/api/documents/:id/pages/:pageNumber/metadata', async (req, res) => {
+app.get('/api/documents/:id/pages/:pageNumber/metadata', (async (req: Request, res: Response) => {
   try {
     const { id, pageNumber } = req.params;
-    const result = await pool.query(
+    const result = await pool.query<Page>(
       'SELECT id, document_id, page_number, image_low_res, image_high_res, ocr_data FROM pages WHERE document_id = $1 AND page_number = $2',
       [id, pageNumber],
     );
@@ -109,13 +132,13 @@ app.get('/api/documents/:id/pages/:pageNumber/metadata', async (req, res) => {
     console.error('Error fetching page metadata:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+}) as RequestHandler);
 
 // GET page image (low resolution)
-app.get('/api/documents/:id/pages/:pageNumber/image-low', async (req, res) => {
+app.get('/api/documents/:id/pages/:pageNumber/image-low', (async (req: Request, res: Response) => {
   try {
     const { id, pageNumber } = req.params;
-    const result = await pool.query(
+    const result = await pool.query<{ image_low_res: Buffer }>(
       'SELECT image_low_res FROM pages WHERE document_id = $1 AND page_number = $2',
       [id, pageNumber],
     );
@@ -131,13 +154,13 @@ app.get('/api/documents/:id/pages/:pageNumber/image-low', async (req, res) => {
     console.error('Error fetching low-res image:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+}) as RequestHandler);
 
 // GET page image (high resolution)
-app.get('/api/documents/:id/pages/:pageNumber/image-high', async (req, res) => {
+app.get('/api/documents/:id/pages/:pageNumber/image-high', (async (req: Request, res: Response) => {
   try {
     const { id, pageNumber } = req.params;
-    const result = await pool.query(
+    const result = await pool.query<{ image_high_res: Buffer }>(
       'SELECT image_high_res FROM pages WHERE document_id = $1 AND page_number = $2',
       [id, pageNumber],
     );
@@ -153,13 +176,13 @@ app.get('/api/documents/:id/pages/:pageNumber/image-high', async (req, res) => {
     console.error('Error fetching high-res image:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+}) as RequestHandler);
 
 // GET OCR data for a page
-app.get('/api/documents/:id/pages/:pageNumber/ocr', async (req, res) => {
+app.get('/api/documents/:id/pages/:pageNumber/ocr', (async (req: Request, res: Response) => {
   try {
     const { id, pageNumber } = req.params;
-    const result = await pool.query(
+    const result = await pool.query<{ ocr_data: any }>(
       'SELECT ocr_data FROM pages WHERE document_id = $1 AND page_number = $2',
       [id, pageNumber],
     );
@@ -173,9 +196,9 @@ app.get('/api/documents/:id/pages/:pageNumber/ocr', async (req, res) => {
     console.error('Error fetching OCR data:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
-});
+}) as RequestHandler);
 
 // Start the server
 app.listen(port, () => {
   console.log(`API server listening at http://localhost:${port}`);
-});
+}); 

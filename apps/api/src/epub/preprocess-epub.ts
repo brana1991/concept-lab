@@ -4,19 +4,47 @@ import * as cheerio from 'cheerio';
 import extract from 'extract-zip';
 import * as os from 'os';
 import { fileURLToPath } from 'url';
+import { EPUBService } from './epub.service';
+import { Pool } from 'pg';
+import { EpubCFI } from 'epubjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const STATIC_BASE_URL = 'http://localhost:3000';
 
-interface Manifest {
-  title: string;
-  author: string;
-  chapters: string[];
-  css: string[];
-  cover: string;
+interface ManifestItem {
+  id: string;
+  href?: string;
+  'media-type': string;
+  title?: string;
 }
+
+interface SpineItem {
+  idref: string;
+  linear?: string;
+}
+
+interface OPFData {
+  metadata: {
+    title?: string;
+    creator?: string;
+    [key: string]: any;
+  };
+  manifest: ManifestItem[];
+  spine: SpineItem[];
+}
+
+// Initialize database connection
+const pool = new Pool({
+  host: process.env.PGHOST || 'localhost',
+  user: process.env.PGUSER || 'postgres',
+  password: process.env.PGPASSWORD || 'postgres',
+  database: process.env.PGDATABASE || 'flipbook',
+  port: Number(process.env.PGPORT) || 5432,
+});
+
+const epubService = new EPUBService(pool);
 
 async function extractEpub(epubPath: string): Promise<string> {
   // Create base output directory
@@ -122,12 +150,12 @@ async function findXhtmlFiles(dir: string): Promise<string[]> {
   return files;
 }
 
-async function extractMetadata(opfPath: string): Promise<{ title: string; author: string }> {
+async function extractMetadata(opfPath: string): Promise<{ title: string | undefined; author: string | undefined }> {
   const opfContent = await fs.readFile(opfPath, 'utf-8');
   const $ = cheerio.load(opfContent, { xmlMode: true });
 
-  const title = $('dc\\:title').first().text() || 'Unknown Title';
-  const author = $('dc\\:creator').first().text() || 'Unknown Author';
+  const title = $('dc\\:title').first().text() || undefined;
+  const author = $('dc\\:creator').first().text() || undefined;
 
   return { title, author };
 }
@@ -181,7 +209,9 @@ async function processChapter(filePath: string, chapterPrefix: string): Promise<
     const src = $(el).attr('src');
     if (src && typeof src === 'string') {
       const filename = path.basename(src);
-      $(el).attr('src', `${STATIC_BASE_URL}/epub/${bookDir}/OEBPS/Images/${filename}`);
+      if (filename) {
+        $(el).attr('src', `${STATIC_BASE_URL}/epub/${bookDir}/OEBPS/Images/${filename}`);
+      }
     }
   });
 
@@ -189,7 +219,9 @@ async function processChapter(filePath: string, chapterPrefix: string): Promise<
     const href = $(el).attr('href');
     if (href && typeof href === 'string') {
       const filename = path.basename(href);
-      $(el).attr('href', `${STATIC_BASE_URL}/epub/${bookDir}/OEBPS/Styles/${filename}`);
+      if (filename) {
+        $(el).attr('href', `${STATIC_BASE_URL}/epub/${bookDir}/OEBPS/Styles/${filename}`);
+      }
     }
   });
 
@@ -197,7 +229,13 @@ async function processChapter(filePath: string, chapterPrefix: string): Promise<
   console.log('\n=== Processed HTML Preview ===');
   console.log(processedContent.substring(0, 1000));
 
-  await fs.writeFile(filePath, processedContent);
+  // Create the output directory structure
+  const outputDir = path.join(__dirname, 'output', bookDir, 'OEBPS', 'Text');
+  await fs.mkdir(outputDir, { recursive: true });
+
+  // Write to the output directory instead of the original file
+  const outputPath = path.join(outputDir, path.basename(filePath));
+  await fs.writeFile(outputPath, processedContent);
   return idCounter - 1;
 }
 
@@ -216,38 +254,165 @@ async function findStylesFiles(baseDir: string): Promise<string[]> {
   }
 }
 
-async function main() {
-  if (process.argv.length < 3) {
-    console.error('Usage: ts-node preprocess-epub.ts <epub-file>');
-    process.exit(1);
+async function parseOPF(content: string): Promise<OPFData> {
+  const $ = cheerio.load(content, { xmlMode: true });
+
+  // Parse metadata
+  const metadata = {
+    title: $('metadata > dc\\:title').first().text() || undefined,
+    creator: $('metadata > dc\\:creator').first().text() || undefined,
+  };
+
+  // Parse manifest
+  const manifest: ManifestItem[] = [];
+  $('manifest > item').each((_, el) => {
+    const $el = $(el);
+    const id = $el.attr('id');
+    const href = $el.attr('href');
+    const mediaType = $el.attr('media-type');
+    const title = $el.attr('title');
+    
+    if (id && mediaType) {
+      manifest.push({
+        id,
+        href: href || undefined,
+        'media-type': mediaType,
+        title: title || undefined
+      });
+    }
+  });
+
+  // Parse spine and update manifest items with titles
+  const spine: SpineItem[] = [];
+  $('spine > itemref').each((_, el) => {
+    const $el = $(el);
+    const idref = $el.attr('idref');
+    const linear = $el.attr('linear');
+    
+    if (idref) {
+      // Find the corresponding manifest item
+      const manifestItem = manifest.find(m => m.id === idref);
+      if (manifestItem) {
+        // If the manifest item doesn't have a title, try to get it from the spine
+        if (!manifestItem.title) {
+          const title = $el.attr('title');
+          if (title) {
+            manifestItem.title = title;
+          }
+        }
+      }
+      
+      spine.push({
+        idref,
+        linear: linear || undefined
+      });
+    }
+  });
+
+  return {
+    metadata,
+    manifest,
+    spine
+  };
+}
+
+async function copyChapterFiles(extractedDir: string, outputDir: string): Promise<void> {
+  // Create necessary directories
+  const textDir = path.join(outputDir, 'OEBPS', 'Text');
+  const stylesDir = path.join(outputDir, 'OEBPS', 'Styles');
+  const imagesDir = path.join(outputDir, 'OEBPS', 'Images');
+
+  await fs.mkdir(textDir, { recursive: true });
+  await fs.mkdir(stylesDir, { recursive: true });
+  await fs.mkdir(imagesDir, { recursive: true });
+
+  // Copy Text files
+  const sourceTextDir = path.join(extractedDir, 'OEBPS', 'Text');
+  const textFiles = await fs.readdir(sourceTextDir);
+  for (const file of textFiles) {
+    if (file.endsWith('.html') || file.endsWith('.xhtml')) {
+      await fs.copyFile(
+        path.join(sourceTextDir, file),
+        path.join(textDir, file)
+      );
+    }
   }
 
-  const epubPath = process.argv[2];
-  let outputDir: string | undefined;
+  // Copy Styles
+  const sourceStylesDir = path.join(extractedDir, 'OEBPS', 'Styles');
+  const styleFiles = await fs.readdir(sourceStylesDir);
+  for (const file of styleFiles) {
+    if (file.endsWith('.css')) {
+      await fs.copyFile(
+        path.join(sourceStylesDir, file),
+        path.join(stylesDir, file)
+      );
+    }
+  }
+
+  // Copy Images
+  const sourceImagesDir = path.join(extractedDir, 'OEBPS', 'Images');
+  const imageFiles = await fs.readdir(sourceImagesDir);
+  for (const file of imageFiles) {
+    await fs.copyFile(
+      path.join(sourceImagesDir, file),
+      path.join(imagesDir, file)
+    );
+  }
+}
+
+async function preprocessEPUB(filePath: string) {
+  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'epub-'));
+  const outputDir = path.join(__dirname, 'output', path.basename(filePath, '.epub'));
 
   try {
-    // First extract to a temporary directory to get metadata
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'epub-'));
-    await extract(epubPath, { dir: tempDir });
+    // Extract EPUB
+    const extractedDir = await extractEpub(filePath);
+    
+    // Read OPF file
+    const opfPath = await findContentOpf(extractedDir);
+    const opfContent = await fs.readFile(opfPath, 'utf-8');
+    
+    // Parse OPF
+    const { metadata, manifest, spine } = await parseOPF(opfContent);
+    
+    // Create document in database
+    const timestamp = Date.now();
+    const manifestUrl = `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/manifest-${timestamp}.json`;
+    const document = await epubService.createDocument(
+      String(metadata.title ?? path.basename(filePath, '.epub')),
+      String(metadata.creator ?? 'Unknown Author'),
+      manifestUrl
+    );
 
-    // Get book title from OPF
-    const opfPath = await findContentOpf(tempDir);
-    const { title, author } = await extractMetadata(opfPath);
+    // Copy all necessary files to output directory
+    await copyChapterFiles(extractedDir, outputDir);
 
-    // Clean up temp directory
-    await fs.rm(tempDir, { recursive: true, force: true });
+    // Process chapters and create them in database
+    const chapters = await Promise.all(
+      spine.map(async (item, index) => {
+        const manifestItem = manifest.find(m => m.id === item.idref);
+        if (!manifestItem?.href) return null;
 
-    // Now extract to the proper directory with the book title
-    console.log('Extracting EPUB...');
-    outputDir = await extractEpub(epubPath);
-    console.log('Extracted to:', outputDir);
+        const chapterPath = path.join(outputDir, 'OEBPS', 'Text', path.basename(manifestItem.href));
+        const processedContent = await processChapter(chapterPath, path.basename(manifestItem.href, path.extname(manifestItem.href)));
 
-    // Find and validate content.opf in the new location
-    const finalOpfPath = await findContentOpf(outputDir);
-    console.log('Found OPF file:', finalOpfPath);
+        const chapter = await epubService.createChapter(
+          document.id,
+          manifestItem.title ?? `Chapter ${index + 1}`,
+          `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${path.basename(manifestItem.href)}`,
+          index + 1
+        );
+
+        return chapter;
+      })
+    );
+
+    // Update total chapters count
+    await epubService.updateDocumentChapters(document.id, chapters.filter(Boolean).length);
 
     // Find chapters directory
-    const chaptersDir = await findChaptersDir(path.dirname(finalOpfPath));
+    const chaptersDir = path.join(outputDir, 'OEBPS', 'Text');
     const chapterFiles = (await fs.readdir(chaptersDir))
       .filter((f) => f.endsWith('.xhtml') || f.endsWith('.html'))
       .sort();
@@ -256,32 +421,50 @@ async function main() {
     const cssFiles = await findStylesFiles(outputDir);
     console.log('Found CSS files:', cssFiles);
 
-    const manifest: Manifest = {
-      title,
-      author,
-      chapters: [],
-      css: cssFiles.map(cssFile => 
-        `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Styles/${cssFile}`
+    // Create manifest in the expected format
+    const epubManifest = {
+      id: document.id,
+      title: document.title,
+      author: document.author,
+      epubPath: manifestUrl,
+      chapters: chapterFiles.map(file => 
+        `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${file}`
+      ),
+      css: cssFiles.map(file => 
+        `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Styles/${file}`
       ),
       cover: `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Images/cover.jpg`,
+      createdAt: new Date().toISOString()
     };
 
-    console.log('\nProcessing chapters...');
-    for (const file of chapterFiles) {
-      const filePath = path.join(chaptersDir, file);
-      const chapterPrefix = path.basename(file, path.extname(file));
-      const idsAdded = await processChapter(filePath, chapterPrefix);
-
-      console.log(`${file}: Added ${idsAdded} IDs`);
-      manifest.chapters.push(`${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${file}`);
-    }
-
     // Write manifest
-    const manifestPath = path.join(outputDir, 'manifest.json');
-    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2));
+    const manifestPath = path.join(outputDir, `manifest-${timestamp}.json`);
+    await fs.writeFile(manifestPath, JSON.stringify(epubManifest, null, 2));
     console.log('\nManifest written to:', manifestPath);
     console.log('\nAll processed files are in:', outputDir);
     console.log('\nBook directory name:', path.basename(outputDir));
+
+    return outputDir;
+  } catch (error) {
+    console.error('Error preprocessing EPUB:', error);
+    throw error;
+  } finally {
+    // Clean up temp directory
+    await fs.rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+async function main() {
+  if (process.argv.length < 3) {
+    console.error('Usage: ts-node preprocess-epub.ts <epub-file>');
+    process.exit(1);
+  }
+
+  const epubPath = process.argv[2];
+
+  try {
+    const outputDir = await preprocessEPUB(epubPath);
+    console.log('Successfully processed EPUB. Output directory:', outputDir);
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : String(error));
     process.exit(1);
