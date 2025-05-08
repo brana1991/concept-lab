@@ -3,6 +3,10 @@ import * as path from 'path';
 import * as cheerio from 'cheerio';
 import extract from 'extract-zip';
 import * as os from 'os';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 interface Manifest {
   title: string;
@@ -14,7 +18,7 @@ interface Manifest {
 
 async function extractEpub(epubPath: string): Promise<string> {
   // Create base output directory
-  const baseOutputDir = path.join(process.cwd(), 'epub-output');
+  const baseOutputDir = path.join(__dirname, 'output');
   await fs.mkdir(baseOutputDir, { recursive: true });
 
   // Use the original filename (without extension) as directory name
