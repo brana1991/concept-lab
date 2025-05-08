@@ -1,5 +1,5 @@
 import { useQuery, useQueries } from '@tanstack/react-query';
-import { api, Document, PageData } from './api';
+import { api } from './api';
 
 export function useDocuments() {
   return useQuery({

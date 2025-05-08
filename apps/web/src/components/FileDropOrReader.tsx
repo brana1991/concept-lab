@@ -6,6 +6,12 @@ import { FlipBook, PageContent } from './FlipBook';
 import { EPUBReader } from './EPUBReader';
 import { useEPUBDocuments } from '../lib/queries';
 
+interface PDFPage {
+  dataUrl: string;
+  width: number;
+  height: number;
+}
+
 const FileDropOrReader: React.FC = () => {
   const { setCurrentPage, setTotalPages } = useStore();
   const [pages, setPages] = React.useState<PageContent[]>([]);
@@ -17,7 +23,10 @@ const FileDropOrReader: React.FC = () => {
   const handleFileUpload = async (file: File) => {
     if (file.type === 'application/pdf') {
       const imageData = await parsePDF(file);
-      const parsedPages: PageContent[] = imageData.map((src) => ({ type: 'img' as const, src }));
+      const parsedPages: PageContent[] = imageData.map((page: PDFPage) => ({
+        type: 'img' as const,
+        src: page.dataUrl
+      }));
       setPages(parsedPages);
       setTotalPages(parsedPages.length);
       setCurrentPage(1);
