@@ -46,6 +46,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./apps/api/src/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./apps/api/src/db/001_create_epub_core.sql:/docker-entrypoint-initdb.d/001_create_epub_core.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
