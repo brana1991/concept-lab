@@ -1,24 +1,18 @@
 {
   "name": "concept-lab",
-  "version": "1.0.0",
-  "description": "Bits &amp; Bricks – A collection of problem-solving concepts, experimental features, and technical deep dives. This repository showcases modular solutions and innovative approaches to real-world challenges, focusing on both small code snippets (bits) and larger architectural ideas (bricks).",
-  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "lerna run build",
+    "dev": "lerna run dev --parallel",
+    "test": "lerna run test",
+    "lint": "lerna run lint",
+    "clean": "lerna clean && yarn cache clean"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "devDependencies": {
-    "@types/cheerio": "^0.22.35",
-    "@types/node": "^22.15.15",
-    "cheerio": "^1.0.0",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
-  },
-  "dependencies": {
-    "@types/extract-zip": "^2.0.0",
-    "express": "^5.1.0",
-    "extract-zip": "^2.0.1"
+    "lerna": "^7.1.4"
   }
 }
