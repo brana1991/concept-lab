@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+  pdf-converter:
+    build: .
+    volumes:
+      - ./sample:/input
+      - pdf_output:/output
+      - ./convert.mjs:/app/convert.mjs
+    depends_on:
+      - postgres
+    environment:
+      - PGHOST=postgres
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PGDATABASE=flipbook
+      - PGPORT=5432
+      - NODE_ENV=development
+
+  api-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - '3000:3000'
+    volumes:
+      - pdf_output:/output
+      - ./api-server.mjs:/app/api-server.mjs
+    depends_on:
+      - postgres
+    environment:
+      - PGHOST=postgres
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PGDATABASE=flipbook
+      - PGPORT=5432
+      - PORT=3000
+      - NODE_ENV=development
+    command: node --watch /app/api-server.mjs # Node.js 18+ watch mode
+
+  postgres:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=flipbook
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+
+volumes:
+  postgres-data:
+  pdf_output:
