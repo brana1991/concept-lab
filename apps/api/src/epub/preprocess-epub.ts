@@ -8,11 +8,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const STATIC_BASE_URL = 'http://localhost:3000';
+
 interface Manifest {
   title: string;
   author: string;
   chapters: string[];
-  css: string;
+  css: string[];
   cover: string;
 }
 
@@ -173,14 +175,14 @@ async function processChapter(filePath: string, chapterPrefix: string): Promise<
   });
 
   // Fix relative paths
-  $('link[href^="../css/"]').attr('href', (_, href) => String(href).replace('../css/', 'css/'));
-  $('link[href^="../images/"]').attr('href', (_, href) =>
-    String(href).replace('../images/', 'images/'),
+  $('link[href^="../Styles/"]').attr('href', (_, href) => String(href).replace('../Styles/', 'OEBPS/Styles/'));
+  $('link[href^="../Images/"]').attr('href', (_, href) =>
+    String(href).replace('../Images/', 'OEBPS/Images/'),
   );
-  $('a[href^="../chapters/"]').attr('href', (_, href) =>
-    String(href).replace('../chapters/', 'chapters/'),
+  $('a[href^="../Text/"]').attr('href', (_, href) =>
+    String(href).replace('../Text/', 'OEBPS/Text/'),
   );
-  $('img[src^="../images/"]').attr('src', (_, src) => String(src).replace('../images/', 'images/'));
+  $('img[src^="../Images/"]').attr('src', (_, src) => String(src).replace('../Images/', 'OEBPS/Images/'));
 
   const processedContent = $.html();
   console.log('\n=== Processed HTML Preview ===');
@@ -188,6 +190,21 @@ async function processChapter(filePath: string, chapterPrefix: string): Promise<
 
   await fs.writeFile(filePath, processedContent);
   return idCounter - 1;
+}
+
+async function findStylesFiles(baseDir: string): Promise<string[]> {
+  const stylesDir = path.join(baseDir, 'OEBPS', 'Styles');
+  try {
+    const files = await fs.readdir(stylesDir);
+    const cssFiles = files.filter(f => f.endsWith('.css'));
+    if (cssFiles.length === 0) {
+      throw new Error('No CSS files found in Styles directory');
+    }
+    return cssFiles;
+  } catch (error) {
+    console.error('Error finding CSS files:', error);
+    throw error;
+  }
 }
 
 async function main() {
@@ -226,12 +243,18 @@ async function main() {
       .filter((f) => f.endsWith('.xhtml') || f.endsWith('.html'))
       .sort();
 
+    // Find the CSS files
+    const cssFiles = await findStylesFiles(outputDir);
+    console.log('Found CSS files:', cssFiles);
+
     const manifest: Manifest = {
       title,
       author,
       chapters: [],
-      css: 'css/book.css',
-      cover: 'images/cover.jpg',
+      css: cssFiles.map(cssFile => 
+        `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Styles/${cssFile}`
+      ),
+      cover: `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Images/cover.jpg`,
     };
 
     console.log('\nProcessing chapters...');
@@ -241,7 +264,7 @@ async function main() {
       const idsAdded = await processChapter(filePath, chapterPrefix);
 
       console.log(`${file}: Added ${idsAdded} IDs`);
-      manifest.chapters.push(`chapters/${file}`);
+      manifest.chapters.push(`${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${file}`);
     }
 
     // Write manifest
