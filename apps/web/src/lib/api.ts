@@ -35,6 +35,7 @@ interface EPUBDocument {
   createdAt: string;
 }
 
+
 // Mock EPUB documents
 const mockEPUBDocuments: EPUBDocument[] = [
   {
@@ -86,6 +87,9 @@ const mockEPUBDocuments: EPUBDocument[] = [
   },
 ];
 
+
+
+
 export const api = {
   async getDocuments(): Promise<Document[]> {
     const response = await fetch(`${API_BASE_URL}/documents`);
@@ -125,12 +129,15 @@ export const api = {
   },
 
   getEPUBDocument: async (id: number): Promise<EPUBDocument> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    const document = mockEPUBDocuments.find((doc) => doc.id === id);
-    if (!document) {
-      throw new Error('Document not found');
-    }
-    return document;
+    const response = await fetch(`${API_BASE_URL}/epub/documents/${id}`);
+    if (!response.ok) throw new Error('Failed to fetch document with id: ' + id);
+    
+    const jsonResponse = await response.json();
+    const manifestResponse = await fetch(jsonResponse.manifest_url);
+    
+    if (!manifestResponse.ok) throw new Error('Failed to fetch manifest for document with id: ' + id);
+    const manifest = await manifestResponse.json();
+    
+    return manifest;
   },
 };
