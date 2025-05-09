@@ -1,0 +1,53 @@
+.ghost-sentence {
+  background: rgba(255, 236, 140, 0.3);
+  transition: background-color 0.2s ease;
+}
+
+.user-highlight {
+  background-color: rgba(255, 236, 140, 0.5);
+  border-radius: 2px;
+}
+
+.selection-menu {
+  position: fixed;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  z-index: 1000;
+  display: flex;
+  gap: 4px;
+  animation: fadeIn 0.2s ease;
+}
+
+.selection-menu button {
+  border: none;
+  background: none;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #333;
+}
+
+.selection-menu button:hover {
+  background: #f0f0f0;
+}
+
+.selection-menu button.cancel {
+  color: #666;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+} 
