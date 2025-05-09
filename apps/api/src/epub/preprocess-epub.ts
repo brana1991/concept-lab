@@ -397,11 +397,12 @@ async function preprocessEPUB(filePath: string) {
         const chapterPath = path.join(outputDir, 'OEBPS', 'Text', path.basename(manifestItem.href));
         const processedContent = await processChapter(chapterPath, path.basename(manifestItem.href, path.extname(manifestItem.href)));
 
+        // Use the spine index for chapter order
         const chapter = await epubService.createChapter(
           document.id,
           manifestItem.title ?? `Chapter ${index + 1}`,
           `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${path.basename(manifestItem.href)}`,
-          index + 1
+          index + 1  // This will now match the spine order
         );
 
         return chapter;
@@ -427,9 +428,15 @@ async function preprocessEPUB(filePath: string) {
       title: document.title,
       author: document.author,
       epubPath: manifestUrl,
-      chapters: chapterFiles.map(file => 
-        `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${file}`
-      ),
+      // Use spine order for chapters
+      chapters: spine
+        .map(item => {
+          const manifestItem = manifest.find(m => m.id === item.idref);
+          return manifestItem?.href 
+            ? `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${path.basename(manifestItem.href)}`
+            : null;
+        })
+        .filter((url): url is string => url !== null),
       css: cssFiles.map(file => 
         `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Styles/${file}`
       ),
