@@ -166,7 +166,9 @@ function generateId(prefix: string, counter: number): string {
 
 async function processChapter(filePath: string, chapterPrefix: string): Promise<number> {
   console.log(`\nProcessing chapter: ${filePath}`);
-  const content = await fs.readFile(filePath, 'utf-8');
+  // Decode URL-encoded file path
+  const decodedFilePath = decodeURIComponent(filePath);
+  const content = await fs.readFile(decodedFilePath, 'utf-8');
   console.log('\n=== Original HTML Preview ===');
   console.log(content.substring(0, 1000));
 
@@ -202,7 +204,7 @@ async function processChapter(filePath: string, chapterPrefix: string): Promise<
   });
 
   // Fix OEBPS paths to be absolute
-  const bookDir = path.basename(path.dirname(path.dirname(path.dirname(filePath))));
+  const bookDir = path.basename(path.dirname(path.dirname(path.dirname(decodedFilePath))));
   
   // Handle img and link tags
   $('img').each((_, el) => {
@@ -234,7 +236,7 @@ async function processChapter(filePath: string, chapterPrefix: string): Promise<
   await fs.mkdir(outputDir, { recursive: true });
 
   // Write to the output directory instead of the original file
-  const outputPath = path.join(outputDir, path.basename(filePath));
+  const outputPath = path.join(outputDir, path.basename(decodedFilePath));
   await fs.writeFile(outputPath, processedContent);
   return idCounter - 1;
 }
