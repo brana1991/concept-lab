@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "clean-epub": "rm -rf src/epub/output/*",
     "preprocess-epub": "tsx src/epub/preprocess-epub.ts",
+    "clean-db": "docker exec concept-lab-postgres-1 psql -U postgres -d flipbook -c \"DELETE FROM documents;\"",
     "build": "tsc",
     "start": "tsx src/api-server.ts",
     "dev": "tsx watch src/api-server.ts"

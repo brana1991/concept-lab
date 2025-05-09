@@ -217,6 +217,17 @@ async function processChapter(filePath: string, chapterPrefix: string): Promise<
     }
   });
 
+  // Handle SVG image elements
+  $('svg image').each((_, el) => {
+    const href = $(el).attr('xlink:href');
+    if (href && typeof href === 'string') {
+      const filename = path.basename(href);
+      if (filename) {
+        $(el).attr('xlink:href', `${STATIC_BASE_URL}/epub/${bookDir}/OEBPS/Images/${filename}`);
+      }
+    }
+  });
+
   $('link').each((_, el) => {
     const href = $(el).attr('href');
     if (href && typeof href === 'string') {
