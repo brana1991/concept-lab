@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createEPUBRoutes } from './epub/epub.routes';
 import { EPUBService } from './epub/epub.service';
+import logger from './utils/logger';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,6 +23,38 @@ const pool = new Pool({
   port: process.env.PGPORT ? parseInt(process.env.PGPORT) : 5432,
 });
 
+// Log database connection
+pool.on('connect', () => {
+  logger.info('Connected to PostgreSQL database');
+});
+
+pool.on('error', (err) => {
+  logger.error('Unexpected error on idle client', { error: err });
+});
+
+// Request logging middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const start = Date.now();
+  
+  // Log request
+  logger.debug(`${req.method} ${req.url}`, {
+    query: req.query,
+    params: req.params,
+    body: req.body,
+  });
+  
+  // Log response time when completed
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.debug(`${req.method} ${req.url} completed`, {
+      statusCode: res.statusCode,
+      duration: `${duration}ms`
+    });
+  });
+  
+  next();
+});
+
 // Middleware
 app.use(cors({
   origin: '*',
@@ -32,6 +65,20 @@ app.use(cors({
   maxAge: 86400 // 24 hours
 }));
 app.use(express.json());
+
+// Health check endpoint
+app.get('/api/health', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV,
+    database: {
+      connections: pool.totalCount,
+      idle: pool.idleCount
+    }
+  });
+});
 
 // Serve static files from the EPUB output directory with proper headers
 app.use('/epub', ((req: Request, res: Response, next: NextFunction) => {
@@ -198,7 +245,23 @@ app.get('/api/documents/:id/pages/:pageNumber/ocr', (async (req: Request, res: R
   }
 }) as RequestHandler);
 
-// Start the server
+// Error handling middleware
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  logger.error('Unhandled error', {
+    error: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method
+  });
+  
+  res.status(500).json({
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// Start server
 app.listen(port, () => {
-  console.log(`API server listening at http://localhost:${port}`);
+  logger.info(`Server is running on port ${port}`);
+  logger.info(`Environment: ${process.env.NODE_ENV}`);
 }); 

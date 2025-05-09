@@ -118,11 +118,10 @@ export const api = {
     return response.json();
   },
 
-  // EPUB functions
   getEPUBDocuments: async (): Promise<EPUBDocument[]> => {
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    return mockEPUBDocuments;
+    const response = await fetch(`${API_BASE_URL}/epub/documents`);
+    if (!response.ok) throw new Error('Failed to fetch documents');
+    return response.json();
   },
 
   getEPUBDocument: async (id: number): Promise<EPUBDocument> => {

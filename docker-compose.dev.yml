@@ -13,6 +13,8 @@ services:
     volumes:
       - ./apps/web:/app
       - /app/node_modules
+      - ./apps/api/src/epub/output:/app/public/epub
+      - ./apps/api/src/ocr/output:/app/public/ocr
     depends_on:
       - api-server
 
@@ -28,8 +30,8 @@ services:
     volumes:
       - ./apps/api:/app
       - /app/node_modules
-      - ./apps/api/src/ocr/output:/app/src/ocr/output
       - ./apps/api/src/epub/output:/app/src/epub/output
+      - ./apps/api/src/ocr/output:/app/src/ocr/output
     environment:
       - PGHOST=postgres
       - PGUSER=postgres
@@ -38,6 +40,8 @@ services:
       - PGPORT=5432
       - PORT=3000
       - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - DEBUG=express:*,app:*,epub:*
 
   postgres:
     image: postgres:14
@@ -49,7 +53,8 @@ services:
       - '5432:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./apps/api/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./apps/api/src/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+      - ./apps/api/src/db/001_create_epub_core.sql:/docker-entrypoint-initdb.d/001_create_epub_core.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s

@@ -10,12 +10,14 @@
     "dev": "tsx watch src/api-server.ts"
   },
   "dependencies": {
+    "@types/winston": "^2.4.4",
     "cheerio": "^1.0.0-rc.12",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "extract-zip": "^2.0.1",
     "morgan": "^1.10.0",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "@types/cors": "^2.8.18",

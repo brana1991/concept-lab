@@ -1,8 +1,17 @@
-# Use Node.js 18 as the base image
-FROM node:18-slim
+# Use Node.js 20 as the base image
+FROM node:20-slim
 
-# Install PostgreSQL client
-RUN apt-get update && apt-get install -y libpq-dev
+# Install Python and build dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    libpq-dev \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set Python environment variables
+ENV PYTHON=/usr/bin/python3
+ENV PYTHONPATH=/usr/bin/python3
 
 # Set the working directory
 WORKDIR /app
@@ -12,10 +21,15 @@ COPY apps/api/package*.json ./
 
 # Install dependencies
 RUN npm install
-RUN npm install -g nodemon
+
+# Copy application code
+COPY apps/api/ ./
+
+# Create necessary directories
+RUN mkdir -p src/epub/output src/ocr/output
 
 # Expose API port
 EXPOSE 3000
 
 # Set the entrypoint with live reload
-CMD ["nodemon", "--watch", "/app/src", "--ext", "mjs,js,json", "src/api-server.mjs"] 
+CMD ["npm", "run", "dev"] 
