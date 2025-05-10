@@ -23,10 +23,10 @@ export function useEPUBDocuments() {
   });
 }
 
-export function useEPUBDocument(id: number) {
+export function useEPUBManifest(id: number) {
   return useQuery({
-    queryKey: ['epub-document', id],
-    queryFn: () => api.getEPUBDocument(id),
+    queryKey: ['epub-manifest', id],
+    queryFn: () => api.getEpubManifest(id),
     enabled: !!id,
   });
 }

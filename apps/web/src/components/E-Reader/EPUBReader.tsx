@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useEPUBDocument } from '../../lib/queries';
+import { useEPUBManifest } from '../../lib/queries';
 import { SelectionMenu } from '../SelectionMenu';
 import '../../styles/selection.css';
 import { IframeBuilder } from './IFrameBuilder';
@@ -46,7 +46,7 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
   });
 
   // Fetch EPUB document data
-  const { data: document, isLoading } = useEPUBDocument(documentId);
+  const { data: document, isLoading } = useEPUBManifest(documentId);
 
   // Action handlers
   const handleHighlight = () => {

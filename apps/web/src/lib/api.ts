@@ -35,61 +35,6 @@ interface EPUBDocument {
   createdAt: string;
 }
 
-
-// Mock EPUB documents
-const mockEPUBDocuments: EPUBDocument[] = [
-  {
-    id: 1,
-    title: 'Bele noći',
-    author: 'Fjodor Mihajlovič Dostojevski',
-    epubPath: `${STATIC_BASE_URL}/epub/bele-noci/manifest.json`,
-    chapters: [
-      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/cover.xhtml`,
-      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Jutro.xhtml`,
-      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Naslov.xhtml`,
-      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Nastjenjkina_istorija.xhtml`,
-      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Noc_cetvrta.xhtml`,
-      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Noc_druga.xhtml`,
-      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Noc_prva.xhtml`,
-      `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Text/Noc_treca.xhtml`,
-    ],
-    css: [`${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Styles/style.css`],
-    cover: `${STATIC_BASE_URL}/epub/bele-noci/OEBPS/Images/cover.jpg`,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    title: 'Gospodar muva',
-    author: 'Vilijem Golding',
-    epubPath: `${STATIC_BASE_URL}/epub/gospodar-muha/manifest.json`,
-    chapters: [
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/001.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/002.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/003.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/004.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/005.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/006.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/007.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/008.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/009.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/010.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/011.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/012.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/013.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/014.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/015.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/016.html`,
-      `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Text/notes.html`,
-    ],
-    css: [`${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Styles/style.css`],
-    cover: `${STATIC_BASE_URL}/epub/gospodar-muha/OEBPS/Images/cover.jpg`,
-    createdAt: new Date().toISOString(),
-  },
-];
-
-
-
-
 export const api = {
   async getDocuments(): Promise<Document[]> {
     const response = await fetch(`${API_BASE_URL}/documents`);
@@ -128,16 +73,17 @@ export const api = {
     return response.json();
   },
 
-  getEPUBDocument: async (id: number): Promise<EPUBDocument> => {
+  getEpubManifest: async (id: number): Promise<EPUBDocument> => {
     const response = await fetch(`${API_BASE_URL}/epub/documents/${id}`);
     if (!response.ok) throw new Error('Failed to fetch document with id: ' + id);
-    
+
     const jsonResponse = await response.json();
     const manifestResponse = await fetch(jsonResponse.manifest_url);
-    
-    if (!manifestResponse.ok) throw new Error('Failed to fetch manifest for document with id: ' + id);
+
+    if (!manifestResponse.ok)
+      throw new Error('Failed to fetch manifest for document with id: ' + id);
     const manifest = await manifestResponse.json();
-    
+
     return manifest;
   },
 };
