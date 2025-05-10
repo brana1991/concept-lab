@@ -11,8 +11,8 @@ export default defineConfig({
       allow: ['..'],
     },
   },
-  // Serve static files from the API output directories
-  publicDir: path.resolve(__dirname, '../api/src'),
+  // Serve static files from the web app's public directory
+  publicDir: path.resolve(__dirname, 'public'),
   // Configure static file serving
   build: {
     assetsDir: 'assets',
