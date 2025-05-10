@@ -7,7 +7,7 @@ import '../styles/selection.css';
 
 // Debug logging
 const DEBUG = true;
-const logDebug = (message: string, data?: any) => {
+const logDebug = (message: string, data?: unknown) => {
   if (DEBUG) {
     console.log(`%c[EPUBReader] ${message}`, 'color: #2196f3; font-weight: bold', data || '');
   }
@@ -19,59 +19,8 @@ interface EPUBReaderProps {
 }
 
 // Types for better type safety
-interface ChapterData {
-  html: string;
-}
 
-// Utility functions
-const createIframe = (container: HTMLDivElement): HTMLIFrameElement => {
-  const iframe = window.document.createElement('iframe');
-  iframe.style.width = '100%';
-  iframe.style.height = '100%';
-  iframe.style.border = 'none';
-  container.appendChild(iframe);
-  return iframe;
-};
-
-const injectStyles = (document: Document, cssPaths: string[]): void => {
-  // Inject theme CSS as a style tag
-  const themeStyle = document.createElement('style');
-  themeStyle.textContent = `
-    html, body {
-      height: 100%;
-      width: 100%;
-      margin: 0;
-      padding: 0;
-    }
-    body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 2rem;
-      box-sizing: border-box;
-    }
-    img {
-      max-width: 100%;
-      height: auto;
-    }
-    .chapter {
-      max-width: 800px;
-      width: 100%;
-    }
-  `;
-  document.head.appendChild(themeStyle);
-
-  // Inject all publisher CSS files
-  cssPaths.forEach(cssPath => {
-    const publisherCssLink = document.createElement('link');
-    publisherCssLink.rel = 'stylesheet';
-    publisherCssLink.href = cssPath;
-    document.head.appendChild(publisherCssLink);
-  });
-};
-
-const fetchChapterContent = async (chapterPath: string): Promise<ChapterData> => {
+const fetchChapterContent = async (chapterPath: string): Promise<string> => {
   const response = await fetch(chapterPath, {
     headers: {
       'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -86,31 +35,115 @@ const fetchChapterContent = async (chapterPath: string): Promise<ChapterData> =>
   }
 
   const html = await response.text();
-  return { html };
+
+  return html;
 };
 
-const copyContentToIframe = (sourceDoc: Document, iframeDoc: Document): void => {
-  // Copy the head content
-  const headContent = sourceDoc.querySelector('head');
-  if (headContent) {
-    Array.from(headContent.children).forEach((child) => {
-      iframeDoc.head.appendChild(child.cloneNode(true));
+class IframeBuilder {
+  private iframe: HTMLIFrameElement;
+  private container: HTMLDivElement;
+
+  constructor(container: HTMLDivElement) {
+    this.container = container;
+    this.iframe = window.document.createElement('iframe');
+
+    this.initIframe();
+  }
+
+  private initIframe() {
+    this.iframe.style.width = '100%';
+    this.iframe.style.height = '100%';
+    this.iframe.style.border = 'none';
+    this.container.appendChild(this.iframe);
+
+    if (!this.iframe.contentDocument) {
+      throw new Error('Iframe contentDocument not available - iframe must be added to DOM first');
+    }
+
+    this.iframe.contentDocument.open();
+    this.iframe.contentDocument.write('<!DOCTYPE html><html><head></head><body></body></html>');
+    this.iframe.contentDocument.close();
+  }
+
+  injectPublisherStyles(cssPaths: string[]) {
+    if (!this.iframe.contentDocument) {
+      throw new Error('Iframe contentDocument not available - iframe must be added to DOM first');
+    }
+
+    const contentDocument = this.iframe.contentDocument;
+    const existingLinks = Array.from(contentDocument.getElementsByTagName('link'));
+
+    // Only inject CSS that isn't already present
+    cssPaths.forEach((cssPath) => {
+      const cssFilename = cssPath.split('/').pop() || '';
+      const alreadyExists = existingLinks.some((link) => {
+        const href = link.getAttribute('href') || '';
+        return href.includes(cssFilename);
+      });
+
+      if (!alreadyExists) {
+        const publisherCssLink = contentDocument.createElement('link');
+        publisherCssLink.rel = 'stylesheet';
+        publisherCssLink.href = cssPath;
+        contentDocument.head.appendChild(publisherCssLink);
+      }
     });
+
+    return this;
   }
 
-  // Copy the body content
-  const bodyContent = sourceDoc.querySelector('body');
-  if (bodyContent) {
-    iframeDoc.body.innerHTML = bodyContent.innerHTML;
+  injectCustomStyles() {
+    if (!this.iframe.contentDocument) {
+      throw new Error('Iframe contentDocument not available - iframe must be added to DOM first');
+    }
+
+    // load default.css
+    const defaultCss = document.createElement('link');
+    defaultCss.rel = 'stylesheet';
+    defaultCss.href = '/themes/default.css';
+    this.iframe.contentDocument.head.appendChild(defaultCss);
+
+    return this;
   }
-};
+
+  copyContentToIframe(sourceDoc: Document) {
+    if (!this.iframe.contentDocument) {
+      throw new Error('Iframe contentDocument not available - iframe must be added to DOM first');
+    }
+
+    const contentDocument = this.iframe.contentDocument;
+
+    const headContent = sourceDoc.querySelector('head');
+    if (headContent) {
+      Array.from(headContent.children).forEach((child) => {
+        contentDocument.head.appendChild(child.cloneNode(true));
+      });
+    }
+
+    const bodyContent = sourceDoc.querySelector('body');
+    if (bodyContent) {
+      contentDocument.body.innerHTML = bodyContent.innerHTML;
+    }
+
+    return this;
+  }
+
+  getIframe() {
+    return this.iframe;
+  }
+}
 
 export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'default' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+
   const ghostRef = useRef<HTMLElement | null>(null);
+
   const [currentChapter, setCurrentChapter] = useState(0);
+
   const [error, setError] = useState<string | null>(null);
+
   const [selectionState, setSelectionState] = useState<{
     text: string;
     range: Range | null;
@@ -130,19 +163,19 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
   // Action handlers
   const handleHighlight = () => {
     logDebug('Highlighting selection', selectionState.text);
-    
+
     if (selectionState.range && iframeRef.current?.contentDocument) {
       try {
         const iframeDoc = iframeRef.current.contentDocument;
         const mark = iframeDoc.createElement('mark');
         mark.className = 'user-highlight';
-        
+
         selectionState.range.surroundContents(mark);
         logDebug('Added highlight mark');
       } catch (e) {
         logDebug('Error highlighting selection', e);
       }
-      
+
       // Clear selection state
       setSelectionState({ text: '', range: null, position: null });
     }
@@ -150,12 +183,13 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
 
   const handleCopy = () => {
     logDebug('Copying selection', selectionState.text);
-    
+
     if (selectionState.text) {
-      navigator.clipboard.writeText(selectionState.text)
+      navigator.clipboard
+        .writeText(selectionState.text)
         .then(() => logDebug('Text copied to clipboard'))
-        .catch(e => logDebug('Error copying to clipboard', e));
-      
+        .catch((e) => logDebug('Error copying to clipboard', e));
+
       // Clear selection state
       setSelectionState({ text: '', range: null, position: null });
     }
@@ -163,10 +197,10 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
 
   const handleAddNote = () => {
     logDebug('Adding note for selection', selectionState.text);
-    
+
     if (selectionState.text) {
       console.log('Add note:', { text: selectionState.text });
-      
+
       // Clear selection state
       setSelectionState({ text: '', range: null, position: null });
     }
@@ -174,10 +208,10 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
 
   const handleAskAI = () => {
     logDebug('Asking AI about selection', selectionState.text);
-    
+
     if (selectionState.text) {
       console.log('Ask LLM:', selectionState.text);
-      
+
       // Clear selection state
       setSelectionState({ text: '', range: null, position: null });
     }
@@ -189,18 +223,18 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
       const text = range.toString().trim();
       const container = range.commonAncestorContainer;
       const textContent = container.textContent || '';
-      
+
       // Simple sentence splitting - can be improved
       const sentences = textContent.split(/[.!?]+\s+/);
-      const sentence = sentences.find(s => s.includes(text)) || text;
-      
+      const sentence = sentences.find((s) => s.includes(text)) || text;
+
       return sentence.trim();
     } catch (e) {
       console.error('Error getting sentence:', e);
       return range.toString().trim();
     }
   };
-  
+
   // Helper to remove ghost highlight
   const removeGhostHighlight = () => {
     if (ghostRef.current) {
@@ -218,79 +252,56 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
   useEffect(() => {
     if (!containerRef.current || !document) return;
 
-    logDebug('Initializing reader with document:', document);
-    const iframe = createIframe(containerRef.current);
-    iframeRef.current = iframe;
-    logDebug('Created iframe', iframe);
+    let iframe: HTMLIFrameElement;
+    const container = containerRef.current;
+    const documentCss = document.css;
+    const chapterPath = document.chapters[currentChapter];
 
     const loadChapter = async () => {
       try {
         setError(null);
-        const chapterPath = document.chapters[currentChapter];
-        logDebug('Loading chapter from:', chapterPath);
 
-        const { html } = await fetchChapterContent(chapterPath);
-        logDebug('Loaded HTML length:', html.length);
+        const chapterHtml = await fetchChapterContent(chapterPath);
+        const chapterDoc = new DOMParser().parseFromString(chapterHtml, 'application/xhtml+xml');
+        iframe = new IframeBuilder(container)
+          .copyContentToIframe(chapterDoc)
+          .injectPublisherStyles(documentCss)
+          .injectCustomStyles()
+          .getIframe();
 
-        if (!iframe.contentDocument) {
-          throw new Error('Could not access iframe content document');
-        }
-
-        // Parse the XHTML content
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'application/xhtml+xml');
-        logDebug('Parsed HTML document', doc);
-
-        // Clear and prepare iframe
-        iframe.contentDocument.open();
-        iframe.contentDocument.write('<!DOCTYPE html><html><head></head><body></body></html>');
-        iframe.contentDocument.close();
-        logDebug('Prepared iframe document');
-
-        // Inject styles
-        injectStyles(iframe.contentDocument, document.css);
-        logDebug('Injected styles to iframe');
-
-        // Copy content to iframe
-        copyContentToIframe(doc, iframe.contentDocument);
-        logDebug('Copied content to iframe');
-
-        // Make iframe accessible to other components
-        iframe.setAttribute('data-ready', 'true');
-        
         // Add debugging events to iframe document
         if (iframe.contentDocument) {
           // Setup selection handling
           iframe.contentDocument.addEventListener('mouseup', () => {
             logDebug('Direct mouseup in iframe');
-            
+
             // Clear any previous ghost highlight
             removeGhostHighlight();
-            
+
             // Short delay to allow selection to complete
             setTimeout(() => {
               const selection = iframe.contentDocument?.getSelection();
               if (!selection || selection.isCollapsed) return;
-              
+
               const text = selection.toString().trim();
               if (text.length === 0) return;
-              
+
               logDebug('Selected text in iframe:', text);
-              
+
               try {
                 // Get the range and position
                 const range = selection.getRangeAt(0);
                 const iframeDoc = iframe.contentDocument!;
-                
+
                 // Create ghost sentence highlight
                 const sentence = getSentenceContainingRange(range, iframeDoc);
                 logDebug('Found sentence:', sentence);
-                
+
                 const sentenceElement = iframeDoc.createElement('span');
                 sentenceElement.textContent = sentence;
                 sentenceElement.classList.add('ghost-sentence');
                 ghostRef.current = sentenceElement;
-                
+
                 // Insert ghost highlight without disrupting selection
                 const tempRange = iframeDoc.createRange();
                 tempRange.selectNode(range.commonAncestorContainer);
@@ -300,45 +311,45 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
                 } catch (e) {
                   logDebug('Error inserting ghost highlight', e);
                 }
-                
+
                 // Calculate position for the menu
                 const rect = range.getBoundingClientRect();
                 const iframeRect = iframe.getBoundingClientRect();
-                
+
                 // Calculate position for the menu
                 const menuX = rect.left + iframeRect.left;
                 const menuY = rect.bottom + iframeRect.top + 10;
-                
+
                 logDebug('Menu position:', { x: menuX, y: menuY });
-                
+
                 // Set up the selection state for the menu
                 setSelectionState({
                   text,
                   range,
                   position: {
                     x: menuX,
-                    y: menuY
-                  }
+                    y: menuY,
+                  },
                 });
               } catch (e) {
                 logDebug('Error handling selection', e);
               }
             }, 100);
           });
-          
+
           iframe.contentDocument.addEventListener('click', (e) => {
-            logDebug('Iframe click', { 
+            logDebug('Iframe click', {
               target: e.target,
-              x: e.clientX, 
-              y: e.clientY 
+              x: e.clientX,
+              y: e.clientY,
             });
           });
-          
+
           iframe.contentDocument.addEventListener('pointerup', (e) => {
-            logDebug('Iframe pointerup', { 
+            logDebug('Iframe pointerup', {
               target: e.target,
-              x: e.clientX, 
-              y: e.clientY 
+              x: e.clientX,
+              y: e.clientY,
             });
           });
         }
@@ -352,8 +363,8 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
 
     return () => {
       logDebug('Cleaning up EPUBReader');
-      if (containerRef.current) {
-        containerRef.current.removeChild(iframe);
+      if (container) {
+        container.removeChild(iframe);
       }
     };
   }, [document, currentChapter, theme]);
@@ -386,7 +397,10 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
   }
 
   return (
-    <div className="epub-reader" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div
+      className="epub-reader"
+      style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+    >
       <div
         ref={containerRef}
         style={{
@@ -409,7 +423,7 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
           Next Chapter
         </button>
       </div>
-      
+
       {selectionState.position && (
         <SelectionMenu
           position={selectionState.position}
@@ -419,21 +433,23 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
           onAsk={handleAskAI}
           onCancel={() => {
             logDebug('Selection menu cancel clicked');
-            
+
             // Reset selection by directly calling the appropriate methods
             const selection = window.getSelection();
             if (selection) selection.removeAllRanges();
-            
+
             // Clear any iframe selection if it exists
-            const iframe = window.document.querySelector('.epub-reader iframe') as HTMLIFrameElement;
+            const iframe = window.document.querySelector(
+              '.epub-reader iframe',
+            ) as HTMLIFrameElement;
             if (iframe && iframe.contentDocument) {
               logDebug('Clearing iframe selection');
               iframe.contentDocument.getSelection()?.removeAllRanges();
             }
-            
+
             // Remove ghost highlight
             removeGhostHighlight();
-            
+
             // Clear selection state
             setSelectionState({ text: '', range: null, position: null });
           }}
