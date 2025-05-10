@@ -6,7 +6,6 @@ import * as os from 'os';
 import { fileURLToPath } from 'url';
 import { EPUBService } from './epub.service';
 import { Pool } from 'pg';
-import { EpubCFI } from 'epubjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -150,7 +149,9 @@ async function findXhtmlFiles(dir: string): Promise<string[]> {
   return files;
 }
 
-async function extractMetadata(opfPath: string): Promise<{ title: string | undefined; author: string | undefined }> {
+async function extractMetadata(
+  opfPath: string,
+): Promise<{ title: string | undefined; author: string | undefined }> {
   const opfContent = await fs.readFile(opfPath, 'utf-8');
   const $ = cheerio.load(opfContent, { xmlMode: true });
 
@@ -205,7 +206,7 @@ async function processChapter(filePath: string, chapterPrefix: string): Promise<
 
   // Fix OEBPS paths to be absolute
   const bookDir = path.basename(path.dirname(path.dirname(path.dirname(decodedFilePath))));
-  
+
   // Handle img and link tags
   $('img').each((_, el) => {
     const src = $(el).attr('src');
@@ -256,7 +257,7 @@ async function findStylesFiles(baseDir: string): Promise<string[]> {
   const stylesDir = path.join(baseDir, 'OEBPS', 'Styles');
   try {
     const files = await fs.readdir(stylesDir);
-    const cssFiles = files.filter(f => f.endsWith('.css'));
+    const cssFiles = files.filter((f) => f.endsWith('.css'));
     if (cssFiles.length === 0) {
       throw new Error('No CSS files found in Styles directory');
     }
@@ -284,13 +285,13 @@ async function parseOPF(content: string): Promise<OPFData> {
     const href = $el.attr('href');
     const mediaType = $el.attr('media-type');
     const title = $el.attr('title');
-    
+
     if (id && mediaType) {
       manifest.push({
         id,
         href: href || undefined,
         'media-type': mediaType,
-        title: title || undefined
+        title: title || undefined,
       });
     }
   });
@@ -301,10 +302,10 @@ async function parseOPF(content: string): Promise<OPFData> {
     const $el = $(el);
     const idref = $el.attr('idref');
     const linear = $el.attr('linear');
-    
+
     if (idref) {
       // Find the corresponding manifest item
-      const manifestItem = manifest.find(m => m.id === idref);
+      const manifestItem = manifest.find((m) => m.id === idref);
       if (manifestItem) {
         // If the manifest item doesn't have a title, try to get it from the spine
         if (!manifestItem.title) {
@@ -314,10 +315,10 @@ async function parseOPF(content: string): Promise<OPFData> {
           }
         }
       }
-      
+
       spine.push({
         idref,
-        linear: linear || undefined
+        linear: linear || undefined,
       });
     }
   });
@@ -325,7 +326,7 @@ async function parseOPF(content: string): Promise<OPFData> {
   return {
     metadata,
     manifest,
-    spine
+    spine,
   };
 }
 
@@ -344,10 +345,7 @@ async function copyChapterFiles(extractedDir: string, outputDir: string): Promis
   const textFiles = await fs.readdir(sourceTextDir);
   for (const file of textFiles) {
     if (file.endsWith('.html') || file.endsWith('.xhtml')) {
-      await fs.copyFile(
-        path.join(sourceTextDir, file),
-        path.join(textDir, file)
-      );
+      await fs.copyFile(path.join(sourceTextDir, file), path.join(textDir, file));
     }
   }
 
@@ -356,10 +354,7 @@ async function copyChapterFiles(extractedDir: string, outputDir: string): Promis
   const styleFiles = await fs.readdir(sourceStylesDir);
   for (const file of styleFiles) {
     if (file.endsWith('.css')) {
-      await fs.copyFile(
-        path.join(sourceStylesDir, file),
-        path.join(stylesDir, file)
-      );
+      await fs.copyFile(path.join(sourceStylesDir, file), path.join(stylesDir, file));
     }
   }
 
@@ -367,10 +362,7 @@ async function copyChapterFiles(extractedDir: string, outputDir: string): Promis
   const sourceImagesDir = path.join(extractedDir, 'OEBPS', 'Images');
   const imageFiles = await fs.readdir(sourceImagesDir);
   for (const file of imageFiles) {
-    await fs.copyFile(
-      path.join(sourceImagesDir, file),
-      path.join(imagesDir, file)
-    );
+    await fs.copyFile(path.join(sourceImagesDir, file), path.join(imagesDir, file));
   }
 }
 
@@ -381,21 +373,23 @@ async function preprocessEPUB(filePath: string) {
   try {
     // Extract EPUB
     const extractedDir = await extractEpub(filePath);
-    
+
     // Read OPF file
     const opfPath = await findContentOpf(extractedDir);
     const opfContent = await fs.readFile(opfPath, 'utf-8');
-    
+
     // Parse OPF
     const { metadata, manifest, spine } = await parseOPF(opfContent);
-    
+
     // Create document in database
     const timestamp = Date.now();
-    const manifestUrl = `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/manifest-${timestamp}.json`;
+    const manifestUrl = `${STATIC_BASE_URL}/epub/${path.basename(
+      outputDir,
+    )}/manifest-${timestamp}.json`;
     const document = await epubService.createDocument(
       String(metadata.title ?? path.basename(filePath, '.epub')),
       String(metadata.creator ?? 'Unknown Author'),
-      manifestUrl
+      manifestUrl,
     );
 
     // Copy all necessary files to output directory
@@ -404,22 +398,27 @@ async function preprocessEPUB(filePath: string) {
     // Process chapters and create them in database
     const chapters = await Promise.all(
       spine.map(async (item, index) => {
-        const manifestItem = manifest.find(m => m.id === item.idref);
+        const manifestItem = manifest.find((m) => m.id === item.idref);
         if (!manifestItem?.href) return null;
 
         const chapterPath = path.join(outputDir, 'OEBPS', 'Text', path.basename(manifestItem.href));
-        const processedContent = await processChapter(chapterPath, path.basename(manifestItem.href, path.extname(manifestItem.href)));
+        const processedContent = await processChapter(
+          chapterPath,
+          path.basename(manifestItem.href, path.extname(manifestItem.href)),
+        );
 
         // Use the spine index for chapter order
         const chapter = await epubService.createChapter(
           document.id,
           manifestItem.title ?? `Chapter ${index + 1}`,
-          `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${path.basename(manifestItem.href)}`,
-          index + 1  // This will now match the spine order
+          `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${path.basename(
+            manifestItem.href,
+          )}`,
+          index + 1, // This will now match the spine order
         );
 
         return chapter;
-      })
+      }),
     );
 
     // Update total chapters count
@@ -443,18 +442,20 @@ async function preprocessEPUB(filePath: string) {
       epubPath: manifestUrl,
       // Use spine order for chapters
       chapters: spine
-        .map(item => {
-          const manifestItem = manifest.find(m => m.id === item.idref);
-          return manifestItem?.href 
-            ? `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${path.basename(manifestItem.href)}`
+        .map((item) => {
+          const manifestItem = manifest.find((m) => m.id === item.idref);
+          return manifestItem?.href
+            ? `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${path.basename(
+                manifestItem.href,
+              )}`
             : null;
         })
         .filter((url): url is string => url !== null),
-      css: cssFiles.map(file => 
-        `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Styles/${file}`
+      css: cssFiles.map(
+        (file) => `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Styles/${file}`,
       ),
       cover: `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Images/cover.jpg`,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
 
     // Write manifest
