@@ -67,3 +67,22 @@ export function usePrefetchPages(
     })),
   });
 }
+
+export interface Highlight {
+  id: number;
+  document_id: number;
+  chapter_id: number;
+  anchor_id: string;
+  start_offset: number;
+  length: number;
+  text: string | null;
+  created_at: string;
+}
+
+export const useHighlights = (documentId: number) => {
+  return useQuery<Highlight[]>({
+    queryKey: ['highlights', documentId],
+    refetchOnWindowFocus: false,
+    queryFn: () => api.getHighlights(documentId),
+  });
+};

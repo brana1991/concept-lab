@@ -86,4 +86,38 @@ export const api = {
 
     return manifest;
   },
+
+  // Highlight methods
+  createHighlight: async (
+    documentId: number,
+    params: {
+      chapterId: number;
+      anchorId: string;
+      startOffset: number;
+      length: number;
+      text: string;
+    },
+  ) => {
+    const response = await fetch(`${API_BASE_URL}/epub/documents/${documentId}/highlights`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create highlight');
+    }
+
+    return response.json();
+  },
+
+  getHighlights: async (documentId: number) => {
+    const response = await fetch(`${API_BASE_URL}/epub/documents/${documentId}/highlights`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch highlights');
+    }
+    return response.json();
+  },
 };
