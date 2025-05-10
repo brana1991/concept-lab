@@ -1,4 +1,4 @@
-import { RefObject, useState, useRef, useCallback } from 'react';
+import { RefObject, useState, useCallback } from 'react';
 
 interface SelectionState {
   text: string;
@@ -11,7 +11,6 @@ interface UseSelectionProps {
 }
 
 export const useSelection = ({ iframeRef }: UseSelectionProps) => {
-  const ghostRef = useRef<HTMLElement | null>(null);
   const [selectionState, setSelectionState] = useState<SelectionState>({
     text: '',
     range: null,
@@ -19,33 +18,26 @@ export const useSelection = ({ iframeRef }: UseSelectionProps) => {
   });
 
   // Helper to get sentence containing the range
-  const getSentenceContainingRange = (range: Range): string => {
+  const getSentenceContainingRange = (range: Range): Range => {
     try {
-      const text = range.toString().trim();
       const container = range.commonAncestorContainer;
       const textContent = container.textContent || '';
-
-      // Simple sentence splitting - can be improved
       const sentences = textContent.split(/[.!?]+\s+/);
-      const sentence = sentences.find((s) => s.includes(text)) || text;
+      const selectedText = range.toString().trim();
+      const sentence = sentences.find((s) => s.includes(selectedText)) || selectedText;
 
-      return sentence.trim();
+      // Create a new range for the entire sentence
+      const sentenceRange = range.cloneRange();
+      const startOffset = textContent.indexOf(sentence);
+      const endOffset = startOffset + sentence.length;
+
+      sentenceRange.setStart(container, startOffset);
+      sentenceRange.setEnd(container, endOffset);
+
+      return sentenceRange;
     } catch (e) {
-      console.error('Error getting sentence:', e);
-      return range.toString().trim();
-    }
-  };
-
-  // Helper to remove ghost highlight
-  const removeGhostHighlight = () => {
-    if (ghostRef.current) {
-      try {
-        ghostRef.current.classList.remove('ghost-sentence');
-        ghostRef.current.remove();
-        ghostRef.current = null;
-      } catch (e) {
-        console.error('Error removing ghost highlight', e);
-      }
+      console.error('Error getting sentence range:', e);
+      return range;
     }
   };
 
@@ -59,9 +51,6 @@ export const useSelection = ({ iframeRef }: UseSelectionProps) => {
       iframeRef.current.contentDocument.getSelection()?.removeAllRanges();
     }
 
-    // Remove ghost highlight
-    removeGhostHighlight();
-
     // Clear selection state
     setSelectionState({ text: '', range: null, position: null });
   };
@@ -70,9 +59,6 @@ export const useSelection = ({ iframeRef }: UseSelectionProps) => {
     const iframe = iframeRef.current;
     const iframeDoc = iframe?.contentDocument;
     if (!iframe || !iframeDoc) return;
-
-    // Clear any previous ghost highlight
-    removeGhostHighlight();
 
     // Short delay to allow selection to complete
     setTimeout(() => {
@@ -85,22 +71,7 @@ export const useSelection = ({ iframeRef }: UseSelectionProps) => {
       try {
         // Get the range and position
         const range = selection.getRangeAt(0);
-
-        // Create ghost sentence highlight
-        const sentence = getSentenceContainingRange(range);
-        const sentenceElement = iframeDoc.createElement('span');
-        sentenceElement.textContent = sentence;
-        sentenceElement.classList.add('ghost-sentence');
-        ghostRef.current = sentenceElement;
-
-        // Insert ghost highlight without disrupting selection
-        const tempRange = iframeDoc.createRange();
-        tempRange.selectNode(range.commonAncestorContainer);
-        try {
-          tempRange.insertNode(sentenceElement);
-        } catch (e) {
-          console.error('Error inserting ghost highlight', e);
-        }
+        const sentenceRange = getSentenceContainingRange(range);
 
         // Calculate position for the menu
         const rect = range.getBoundingClientRect();
@@ -113,7 +84,7 @@ export const useSelection = ({ iframeRef }: UseSelectionProps) => {
         // Set up the selection state for the menu
         setSelectionState({
           text,
-          range,
+          range: sentenceRange, // Store the sentence range instead of the selection range
           position: {
             x: menuX,
             y: menuY,
