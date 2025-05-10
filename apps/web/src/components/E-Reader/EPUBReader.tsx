@@ -1,9 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useEPUBDocument } from '../lib/queries';
-import '../../public/themes/default.css'; // Import the theme CSS
-import { useTextSelection } from '../hooks/useTextSelection';
-import { SelectionMenu } from './SelectionMenu';
-import '../styles/selection.css';
+import { useEPUBDocument } from '../../lib/queries';
+import { SelectionMenu } from '../SelectionMenu';
+import '../../styles/selection.css';
+import { IframeBuilder } from './IFrameBuilder';
 
 // Debug logging
 const DEBUG = true;
@@ -18,17 +17,8 @@ interface EPUBReaderProps {
   theme?: string;
 }
 
-// Types for better type safety
-
 const fetchChapterContent = async (chapterPath: string): Promise<string> => {
-  const response = await fetch(chapterPath, {
-    headers: {
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      Pragma: 'no-cache',
-      Expires: '0',
-    },
-    cache: 'no-store',
-  });
+  const response = await fetch(chapterPath);
 
   if (!response.ok) {
     throw new Error(`Failed to load chapter: ${response.statusText}`);
@@ -39,109 +29,11 @@ const fetchChapterContent = async (chapterPath: string): Promise<string> => {
   return html;
 };
 
-class IframeBuilder {
-  private iframe: HTMLIFrameElement;
-  private container: HTMLDivElement;
-
-  constructor(container: HTMLDivElement) {
-    this.container = container;
-    this.iframe = window.document.createElement('iframe');
-
-    this.initIframe();
-  }
-
-  private initIframe() {
-    this.iframe.style.width = '100%';
-    this.iframe.style.height = '100%';
-    this.iframe.style.border = 'none';
-    this.container.appendChild(this.iframe);
-
-    if (!this.iframe.contentDocument) {
-      throw new Error('Iframe contentDocument not available - iframe must be added to DOM first');
-    }
-
-    this.iframe.contentDocument.open();
-    this.iframe.contentDocument.write('<!DOCTYPE html><html><head></head><body></body></html>');
-    this.iframe.contentDocument.close();
-  }
-
-  injectPublisherStyles(cssPaths: string[]) {
-    if (!this.iframe.contentDocument) {
-      throw new Error('Iframe contentDocument not available - iframe must be added to DOM first');
-    }
-
-    const contentDocument = this.iframe.contentDocument;
-    const existingLinks = Array.from(contentDocument.getElementsByTagName('link'));
-
-    // Only inject CSS that isn't already present
-    cssPaths.forEach((cssPath) => {
-      const cssFilename = cssPath.split('/').pop() || '';
-      const alreadyExists = existingLinks.some((link) => {
-        const href = link.getAttribute('href') || '';
-        return href.includes(cssFilename);
-      });
-
-      if (!alreadyExists) {
-        const publisherCssLink = contentDocument.createElement('link');
-        publisherCssLink.rel = 'stylesheet';
-        publisherCssLink.href = cssPath;
-        contentDocument.head.appendChild(publisherCssLink);
-      }
-    });
-
-    return this;
-  }
-
-  injectCustomStyles() {
-    if (!this.iframe.contentDocument) {
-      throw new Error('Iframe contentDocument not available - iframe must be added to DOM first');
-    }
-
-    // load default.css
-    const defaultCss = document.createElement('link');
-    defaultCss.rel = 'stylesheet';
-    defaultCss.href = '/themes/default.css';
-    this.iframe.contentDocument.head.appendChild(defaultCss);
-
-    return this;
-  }
-
-  copyContentToIframe(sourceDoc: Document) {
-    if (!this.iframe.contentDocument) {
-      throw new Error('Iframe contentDocument not available - iframe must be added to DOM first');
-    }
-
-    const contentDocument = this.iframe.contentDocument;
-
-    const headContent = sourceDoc.querySelector('head');
-    if (headContent) {
-      Array.from(headContent.children).forEach((child) => {
-        contentDocument.head.appendChild(child.cloneNode(true));
-      });
-    }
-
-    const bodyContent = sourceDoc.querySelector('body');
-    if (bodyContent) {
-      contentDocument.body.innerHTML = bodyContent.innerHTML;
-    }
-
-    return this;
-  }
-
-  getIframe() {
-    return this.iframe;
-  }
-}
-
 export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'default' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-
   const ghostRef = useRef<HTMLElement | null>(null);
-
   const [currentChapter, setCurrentChapter] = useState(0);
-
   const [error, setError] = useState<string | null>(null);
 
   const [selectionState, setSelectionState] = useState<{
@@ -156,9 +48,6 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
 
   // Fetch EPUB document data
   const { data: document, isLoading } = useEPUBDocument(documentId);
-
-  // We're handling selection directly in this component now
-  useTextSelection({ iframeRef });
 
   // Action handlers
   const handleHighlight = () => {
@@ -263,11 +152,13 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
 
         const chapterHtml = await fetchChapterContent(chapterPath);
         const chapterDoc = new DOMParser().parseFromString(chapterHtml, 'application/xhtml+xml');
-        iframe = new IframeBuilder(container)
-          .copyContentToIframe(chapterDoc)
+        const builder = new IframeBuilder(container)
+          .copyHtmlToIframe(chapterDoc)
           .injectPublisherStyles(documentCss)
-          .injectCustomStyles()
-          .getIframe();
+          .injectCustomStyles();
+
+        iframe = builder.getIframe();
+        iframeRef.current = iframe;
 
         // Add debugging events to iframe document
         if (iframe.contentDocument) {
@@ -336,22 +227,6 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
               }
             }, 100);
           });
-
-          iframe.contentDocument.addEventListener('click', (e) => {
-            logDebug('Iframe click', {
-              target: e.target,
-              x: e.clientX,
-              y: e.clientY,
-            });
-          });
-
-          iframe.contentDocument.addEventListener('pointerup', (e) => {
-            logDebug('Iframe pointerup', {
-              target: e.target,
-              x: e.clientX,
-              y: e.clientY,
-            });
-          });
         }
       } catch (error) {
         console.error('Error loading chapter:', error);
@@ -363,6 +238,7 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
 
     return () => {
       logDebug('Cleaning up EPUBReader');
+
       if (container) {
         container.removeChild(iframe);
       }

@@ -3,7 +3,7 @@ import UploadScreen from './UploadScreen';
 import { useStore } from '../store';
 import { parsePDF } from '../lib/parsePDF';
 import { FlipBook, PageContent } from './FlipBook';
-import { EPUBReader } from './EPUBReader';
+import { EPUBReader } from './E-Reader/EPUBReader';
 import { useEPUBDocuments } from '../lib/queries';
 
 interface PDFPage {
@@ -25,7 +25,7 @@ const FileDropOrReader: React.FC = () => {
       const imageData = await parsePDF(file);
       const parsedPages: PageContent[] = imageData.map((page: PDFPage) => ({
         type: 'img' as const,
-        src: page.dataUrl
+        src: page.dataUrl,
       }));
       setPages(parsedPages);
       setTotalPages(parsedPages.length);
