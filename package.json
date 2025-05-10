@@ -8,6 +8,9 @@
   "scripts": {
     "stop-docker-dev": "docker compose -f docker-compose.dev.yml down",
     "docker-dev": "docker compose -f docker-compose.dev.yml up postgres api-server",
+    "process-epub": "cd apps/api && tsx src/epub/preprocess-epub.ts",
+    "clean-db": "docker exec concept-lab-postgres-1 psql -U postgres -d flipbook -c \"DELETE FROM documents;\"",
+    "clean-epub": "rm -rf apps/api/src/epub/output/*",
     "bootstrap": "lerna bootstrap",
     "build": "lerna run build",
     "dev": "lerna run dev --parallel",
