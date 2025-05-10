@@ -30,7 +30,6 @@ const fetchChapterContent = async (chapterPath: string): Promise<string> => {
 };
 
 export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'default' }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const ghostRef = useRef<HTMLElement | null>(null);
   const [currentChapter, setCurrentChapter] = useState(0);
@@ -107,7 +106,7 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
   };
 
   // Helper to get sentence containing the range
-  const getSentenceContainingRange = (range: Range, iframeDoc: Document): string => {
+  const getSentenceContainingRange = (range: Range): string => {
     try {
       const text = range.toString().trim();
       const container = range.commonAncestorContainer;
@@ -139,12 +138,11 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
   };
 
   useEffect(() => {
-    if (!containerRef.current || !document) return;
+    if (!document || !iframeRef.current) return;
 
-    let iframe: HTMLIFrameElement;
-    const container = containerRef.current;
     const documentCss = document.css;
-    const chapterPath = document.chapters[currentChapter];
+    const chapterPath = document?.chapters[currentChapter];
+    const iframe: HTMLIFrameElement = iframeRef.current;
 
     const loadChapter = async () => {
       try {
@@ -152,13 +150,11 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
 
         const chapterHtml = await fetchChapterContent(chapterPath);
         const chapterDoc = new DOMParser().parseFromString(chapterHtml, 'application/xhtml+xml');
-        const builder = new IframeBuilder(container)
+
+        new IframeBuilder(iframe)
           .copyHtmlToIframe(chapterDoc)
           .injectPublisherStyles(documentCss)
           .injectCustomStyles();
-
-        iframe = builder.getIframe();
-        iframeRef.current = iframe;
 
         // Add debugging events to iframe document
         if (iframe.contentDocument) {
@@ -185,7 +181,7 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
                 const iframeDoc = iframe.contentDocument!;
 
                 // Create ghost sentence highlight
-                const sentence = getSentenceContainingRange(range, iframeDoc);
+                const sentence = getSentenceContainingRange(range);
                 logDebug('Found sentence:', sentence);
 
                 const sentenceElement = iframeDoc.createElement('span');
@@ -238,10 +234,6 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
 
     return () => {
       logDebug('Cleaning up EPUBReader');
-
-      if (container) {
-        container.removeChild(iframe);
-      }
     };
   }, [document, currentChapter, theme]);
 
@@ -278,13 +270,14 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
       style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
     >
       <div
-        ref={containerRef}
         style={{
           flex: 1,
           width: '100%',
           overflow: 'hidden',
         }}
-      />
+      >
+        <iframe ref={iframeRef} style={{ width: '100%', height: '100%', border: 'none' }} />
+      </div>
       <div style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between' }}>
         <button onClick={goToPreviousChapter} disabled={currentChapter === 0}>
           Previous Chapter

@@ -1,20 +1,12 @@
 export class IframeBuilder {
   private iframe: HTMLIFrameElement;
-  private container: HTMLDivElement;
 
-  constructor(container: HTMLDivElement) {
-    this.container = container;
-    this.iframe = window.document.createElement('iframe');
-
+  constructor(iframe: HTMLIFrameElement) {
+    this.iframe = iframe;
     this.initIframe();
   }
 
   private initIframe() {
-    this.iframe.style.width = '100%';
-    this.iframe.style.height = '100%';
-    this.iframe.style.border = 'none';
-    this.container.appendChild(this.iframe);
-
     if (!this.iframe.contentDocument) {
       throw new Error('Iframe contentDocument not available - iframe must be added to DOM first');
     }
