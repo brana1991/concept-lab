@@ -1,8 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { useEPUBManifest } from '../../lib/queries';
 import { SelectionMenu } from '../SelectionMenu';
 import '../../styles/selection.css';
 import { IframeBuilder } from './IFrameBuilder';
+import { useSelection } from '../../hooks/useSelection';
+import { useSelectionActions } from '../../hooks/useSelectionActions';
+import { useChapterNavigation } from '../../hooks/useChapterNavigation';
 
 // Debug logging
 const DEBUG = true;
@@ -31,111 +34,16 @@ const fetchChapterContent = async (chapterPath: string): Promise<string> => {
 
 export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'default' }) => {
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
-  const ghostRef = useRef<HTMLElement | null>(null);
-  const [currentChapter, setCurrentChapter] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-
-  const [selectionState, setSelectionState] = useState<{
-    text: string;
-    range: Range | null;
-    position: { x: number; y: number } | null;
-  }>({
-    text: '',
-    range: null,
-    position: null,
-  });
-
-  // Fetch EPUB document data
   const { data: document, isLoading } = useEPUBManifest(documentId);
+  const { currentChapter, error, setError, goToNextChapter, goToPreviousChapter } =
+    useChapterNavigation({ document });
 
-  // Action handlers
-  const handleHighlight = () => {
-    logDebug('Highlighting selection', selectionState.text);
-
-    if (selectionState.range && iframeRef.current?.contentDocument) {
-      try {
-        const iframeDoc = iframeRef.current.contentDocument;
-        const mark = iframeDoc.createElement('mark');
-        mark.className = 'user-highlight';
-
-        selectionState.range.surroundContents(mark);
-        logDebug('Added highlight mark');
-      } catch (e) {
-        logDebug('Error highlighting selection', e);
-      }
-
-      // Clear selection state
-      setSelectionState({ text: '', range: null, position: null });
-    }
-  };
-
-  const handleCopy = () => {
-    logDebug('Copying selection', selectionState.text);
-
-    if (selectionState.text) {
-      navigator.clipboard
-        .writeText(selectionState.text)
-        .then(() => logDebug('Text copied to clipboard'))
-        .catch((e) => logDebug('Error copying to clipboard', e));
-
-      // Clear selection state
-      setSelectionState({ text: '', range: null, position: null });
-    }
-  };
-
-  const handleAddNote = () => {
-    logDebug('Adding note for selection', selectionState.text);
-
-    if (selectionState.text) {
-      console.log('Add note:', { text: selectionState.text });
-
-      // Clear selection state
-      setSelectionState({ text: '', range: null, position: null });
-    }
-  };
-
-  const handleAskAI = () => {
-    logDebug('Asking AI about selection', selectionState.text);
-
-    if (selectionState.text) {
-      console.log('Ask LLM:', selectionState.text);
-
-      // Clear selection state
-      setSelectionState({ text: '', range: null, position: null });
-    }
-  };
-
-  // Helper to get sentence containing the range
-  const getSentenceContainingRange = (range: Range): string => {
-    try {
-      const text = range.toString().trim();
-      const container = range.commonAncestorContainer;
-      const textContent = container.textContent || '';
-
-      // Simple sentence splitting - can be improved
-      const sentences = textContent.split(/[.!?]+\s+/);
-      const sentence = sentences.find((s) => s.includes(text)) || text;
-
-      return sentence.trim();
-    } catch (e) {
-      console.error('Error getting sentence:', e);
-      return range.toString().trim();
-    }
-  };
-
-  // Helper to remove ghost highlight
-  const removeGhostHighlight = () => {
-    if (ghostRef.current) {
-      try {
-        ghostRef.current.classList.remove('ghost-sentence');
-        ghostRef.current.remove();
-        ghostRef.current = null;
-        logDebug('Removed ghost highlight');
-      } catch (e) {
-        logDebug('Error removing ghost highlight', e);
-      }
-    }
-  };
+  const { selectionState, handleSelection, clearSelection } = useSelection({ iframeRef });
+  const { handleHighlight, handleCopy, handleAddNote, handleAskAI } = useSelectionActions({
+    selectionState,
+    iframeRef,
+    onSelectionClear: clearSelection,
+  });
 
   useEffect(() => {
     if (!document || !iframeRef.current) return;
@@ -159,70 +67,7 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
         // Add debugging events to iframe document
         if (iframe.contentDocument) {
           // Setup selection handling
-          iframe.contentDocument.addEventListener('mouseup', () => {
-            logDebug('Direct mouseup in iframe');
-
-            // Clear any previous ghost highlight
-            removeGhostHighlight();
-
-            // Short delay to allow selection to complete
-            setTimeout(() => {
-              const selection = iframe.contentDocument?.getSelection();
-              if (!selection || selection.isCollapsed) return;
-
-              const text = selection.toString().trim();
-              if (text.length === 0) return;
-
-              logDebug('Selected text in iframe:', text);
-
-              try {
-                // Get the range and position
-                const range = selection.getRangeAt(0);
-                const iframeDoc = iframe.contentDocument!;
-
-                // Create ghost sentence highlight
-                const sentence = getSentenceContainingRange(range);
-                logDebug('Found sentence:', sentence);
-
-                const sentenceElement = iframeDoc.createElement('span');
-                sentenceElement.textContent = sentence;
-                sentenceElement.classList.add('ghost-sentence');
-                ghostRef.current = sentenceElement;
-
-                // Insert ghost highlight without disrupting selection
-                const tempRange = iframeDoc.createRange();
-                tempRange.selectNode(range.commonAncestorContainer);
-                try {
-                  tempRange.insertNode(sentenceElement);
-                  logDebug('Inserted ghost highlight');
-                } catch (e) {
-                  logDebug('Error inserting ghost highlight', e);
-                }
-
-                // Calculate position for the menu
-                const rect = range.getBoundingClientRect();
-                const iframeRect = iframe.getBoundingClientRect();
-
-                // Calculate position for the menu
-                const menuX = rect.left + iframeRect.left;
-                const menuY = rect.bottom + iframeRect.top + 10;
-
-                logDebug('Menu position:', { x: menuX, y: menuY });
-
-                // Set up the selection state for the menu
-                setSelectionState({
-                  text,
-                  range,
-                  position: {
-                    x: menuX,
-                    y: menuY,
-                  },
-                });
-              } catch (e) {
-                logDebug('Error handling selection', e);
-              }
-            }, 100);
-          });
+          iframe.contentDocument.addEventListener('mouseup', handleSelection);
         }
       } catch (error) {
         console.error('Error loading chapter:', error);
@@ -235,22 +80,7 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
     return () => {
       logDebug('Cleaning up EPUBReader');
     };
-  }, [document, currentChapter, theme]);
-
-  const goToNextChapter = () => {
-    if (!document) return;
-    const nextChapter = currentChapter + 1;
-    if (nextChapter < document.chapters.length) {
-      setCurrentChapter(nextChapter);
-    }
-  };
-
-  const goToPreviousChapter = () => {
-    const prevChapter = currentChapter - 1;
-    if (prevChapter >= 0) {
-      setCurrentChapter(prevChapter);
-    }
-  };
+  }, [document, currentChapter, theme, handleSelection, setError]);
 
   if (isLoading) {
     return <div>Loading EPUB document...</div>;
@@ -300,28 +130,7 @@ export const EPUBReader: React.FC<EPUBReaderProps> = ({ documentId, theme = 'def
           onCopy={handleCopy}
           onNote={handleAddNote}
           onAsk={handleAskAI}
-          onCancel={() => {
-            logDebug('Selection menu cancel clicked');
-
-            // Reset selection by directly calling the appropriate methods
-            const selection = window.getSelection();
-            if (selection) selection.removeAllRanges();
-
-            // Clear any iframe selection if it exists
-            const iframe = window.document.querySelector(
-              '.epub-reader iframe',
-            ) as HTMLIFrameElement;
-            if (iframe && iframe.contentDocument) {
-              logDebug('Clearing iframe selection');
-              iframe.contentDocument.getSelection()?.removeAllRanges();
-            }
-
-            // Remove ghost highlight
-            removeGhostHighlight();
-
-            // Clear selection state
-            setSelectionState({ text: '', range: null, position: null });
-          }}
+          onCancel={clearSelection}
         />
       )}
     </div>
