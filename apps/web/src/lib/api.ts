@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = '/api';
 export const STATIC_BASE_URL = 'http://localhost:3000';
 
 export interface OCRBox {
@@ -78,11 +78,45 @@ export const api = {
     if (!response.ok) throw new Error('Failed to fetch document with id: ' + id);
 
     const jsonResponse = await response.json();
-    const manifestResponse = await fetch(jsonResponse.manifest_url);
+    // Convert absolute URL to relative URL
+    const manifestUrl = new URL(jsonResponse.manifest_url);
+    const manifestResponse = await fetch(manifestUrl.pathname);
 
     if (!manifestResponse.ok)
       throw new Error('Failed to fetch manifest for document with id: ' + id);
     const manifest = await manifestResponse.json();
+
+    // Convert any absolute URLs in the manifest to relative URLs
+    if (manifest.chapters) {
+      manifest.chapters = manifest.chapters.map((url: string) => {
+        try {
+          const chapterUrl = new URL(url);
+          return chapterUrl.pathname;
+        } catch {
+          // If URL parsing fails, assume it's already a relative path
+          return url;
+        }
+      });
+    }
+    if (manifest.css) {
+      manifest.css = manifest.css.map((url: string) => {
+        try {
+          const cssUrl = new URL(url);
+          return cssUrl.pathname;
+        } catch {
+          // If URL parsing fails, assume it's already a relative path
+          return url;
+        }
+      });
+    }
+    if (manifest.cover) {
+      try {
+        const coverUrl = new URL(manifest.cover);
+        manifest.cover = coverUrl.pathname;
+      } catch {
+        // If URL parsing fails, assume it's already a relative path
+      }
+    }
 
     return manifest;
   },
