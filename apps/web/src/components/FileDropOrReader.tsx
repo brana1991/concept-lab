@@ -3,7 +3,7 @@ import UploadScreen from './UploadScreen';
 import { useStore } from '../store';
 import { parsePDF } from '../lib/parsePDF';
 import { FlipBook, PageContent } from './FlipBook';
-import { EPUBReader } from './E-Reader/EPUBReader';
+import { MobileEPUBReader } from './E-Reader/MobileEPUBReader';
 import { useEPUBDocuments } from '../lib/queries';
 
 interface PDFPage {
@@ -58,7 +58,7 @@ const FileDropOrReader: React.FC = () => {
           )}
         </div>
       ) : selectedEPUBId ? (
-        <EPUBReader documentId={selectedEPUBId} />
+        <MobileEPUBReader documentId={selectedEPUBId} />
       ) : (
         <FlipBook pages={pages} />
       )}
