@@ -5,6 +5,8 @@ import { parsePDF } from '../lib/parsePDF';
 import { FlipBook, PageContent } from './FlipBook';
 import { MobileEPUBReader } from './E-Reader/MobileEPUBReader';
 import { useEPUBDocuments } from '../lib/queries';
+import { BookList } from './BookList';
+import '../styles/books.scss';
 
 interface PDFPage {
   dataUrl: string;
@@ -34,7 +36,7 @@ const FileDropOrReader: React.FC = () => {
   };
 
   if (isLoadingEPUBs) {
-    return <div>Loading available documents...</div>;
+    return <div className="loading-state">Loading your library...</div>;
   }
 
   return (
@@ -43,18 +45,7 @@ const FileDropOrReader: React.FC = () => {
         <div>
           <UploadScreen onFileUpload={handleFileUpload} />
           {epubDocuments && epubDocuments.length > 0 && (
-            <div style={{ marginTop: '2rem' }}>
-              <h2>Available EPUB Documents</h2>
-              <ul>
-                {epubDocuments.map((doc) => (
-                  <li key={doc.id}>
-                    <button onClick={() => setSelectedEPUBId(doc.id)}>
-                      {doc.title} by {doc.author}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
+            <BookList books={epubDocuments} onSelectBook={setSelectedEPUBId} />
           )}
         </div>
       ) : selectedEPUBId ? (

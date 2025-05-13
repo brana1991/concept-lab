@@ -24,7 +24,7 @@ export interface Document {
   total_pages: number;
 }
 
-interface EPUBDocument {
+export interface EPUBDocument {
   id: number;
   title: string;
   author: string;

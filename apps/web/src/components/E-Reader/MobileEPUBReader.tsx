@@ -104,15 +104,15 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
   };
 
   if (isLoading) {
-    return <div>Loading...</div>;
+    return <div className="loading-state">Loading your book...</div>;
   }
 
   if (error) {
-    return <div>Error: {error}</div>;
+    return <div className="error-state">Error: {error}</div>;
   }
 
   if (!document) {
-    return <div>No document found</div>;
+    return <div className="error-state">No document found</div>;
   }
 
   return (
@@ -131,56 +131,17 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
           }}
         />
         {/* Page navigation overlay */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            justifyContent: 'space-between',
-            pointerEvents: 'none',
-          }}
-        >
-          <button
-            onClick={handlePrevPage}
-            disabled={currentPage === 0 && currentChapter === 0}
-            style={{
-              width: '20%',
-              height: '100%',
-              opacity: 0.3,
-              backgroundColor:
-                currentPage === 0 && currentChapter === 0 ? 'transparent' : 'rgba(0, 0, 0, 0.1)',
-              pointerEvents: 'auto',
-              cursor: currentPage === 0 && currentChapter === 0 ? 'default' : 'pointer',
-              border: 'none',
-            }}
-          />
+        <div className="navigation-overlay">
+          <button onClick={handlePrevPage} disabled={currentPage === 0 && currentChapter === 0} />
           <button
             onClick={handleNextPage}
             disabled={
               currentPage === totalPages - 1 && currentChapter === document.chapters.length - 1
             }
-            style={{
-              width: '20%',
-              height: '100%',
-              opacity: 0.3,
-              backgroundColor:
-                currentPage === totalPages - 1 && currentChapter === document.chapters.length - 1
-                  ? 'transparent'
-                  : 'rgba(0, 0, 0, 0.1)',
-              pointerEvents: 'auto',
-              cursor:
-                currentPage === totalPages - 1 && currentChapter === document.chapters.length - 1
-                  ? 'default'
-                  : 'pointer',
-              border: 'none',
-            }}
           />
         </div>
       </div>
-      <div style={{ padding: '1rem', textAlign: 'center' }}>
+      <div className="reader-footer">
         <span>
           {document.title} - Chapter {currentChapter + 1} (Page {currentPage + 1} of {totalPages})
         </span>

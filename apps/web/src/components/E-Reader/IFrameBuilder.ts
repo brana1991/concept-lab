@@ -67,6 +67,21 @@ export class IframeBuilder {
       }
 
       #reader > * {
+        word-wrap: break-word;
+        word-break: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+      }
+
+      /* Allow paragraphs to break across columns */
+      #reader p {
+        break-inside: auto;
+        page-break-inside: auto;
+      }
+
+      /* Keep other elements from breaking */
+      #reader h1, #reader h2, #reader h3, #reader h4, #reader h5, #reader h6,
+      #reader img, #reader pre, #reader blockquote, #reader table {
         break-inside: avoid;
         page-break-inside: avoid;
       }
