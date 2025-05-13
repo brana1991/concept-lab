@@ -81,12 +81,26 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
 
   const handlePrevPage = () => {
     logDebug('Previous page button clicked', { currentPage, totalPages });
-    prevPage();
+    if (currentPage === 0 && currentChapter > 0) {
+      // If we're at the first page of the current chapter and there's a previous chapter,
+      // go to the previous chapter
+      goToPreviousChapter();
+    } else {
+      // Otherwise just go to the previous page
+      prevPage();
+    }
   };
 
   const handleNextPage = () => {
     logDebug('Next page button clicked', { currentPage, totalPages });
-    nextPage();
+    if (currentPage === totalPages - 1 && currentChapter < (document?.chapters.length ?? 0) - 1) {
+      // If we're at the last page of the current chapter and there's a next chapter,
+      // go to the next chapter
+      goToNextChapter();
+    } else {
+      // Otherwise just go to the next page
+      nextPage();
+    }
   };
 
   if (isLoading) {
@@ -131,46 +145,45 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
         >
           <button
             onClick={handlePrevPage}
-            disabled={currentPage === 0}
-            style={{
-              width: '20%',
-              height: '100%',
-              opacity: 0.3,
-              backgroundColor: currentPage === 0 ? 'transparent' : 'rgba(0, 0, 0, 0.1)',
-              pointerEvents: 'auto',
-              cursor: currentPage === 0 ? 'default' : 'pointer',
-              border: 'none',
-            }}
-          />
-          <button
-            onClick={handleNextPage}
-            disabled={currentPage === totalPages - 1}
+            disabled={currentPage === 0 && currentChapter === 0}
             style={{
               width: '20%',
               height: '100%',
               opacity: 0.3,
               backgroundColor:
-                currentPage === totalPages - 1 ? 'transparent' : 'rgba(0, 0, 0, 0.1)',
+                currentPage === 0 && currentChapter === 0 ? 'transparent' : 'rgba(0, 0, 0, 0.1)',
               pointerEvents: 'auto',
-              cursor: currentPage === totalPages - 1 ? 'default' : 'pointer',
+              cursor: currentPage === 0 && currentChapter === 0 ? 'default' : 'pointer',
+              border: 'none',
+            }}
+          />
+          <button
+            onClick={handleNextPage}
+            disabled={
+              currentPage === totalPages - 1 && currentChapter === document.chapters.length - 1
+            }
+            style={{
+              width: '20%',
+              height: '100%',
+              opacity: 0.3,
+              backgroundColor:
+                currentPage === totalPages - 1 && currentChapter === document.chapters.length - 1
+                  ? 'transparent'
+                  : 'rgba(0, 0, 0, 0.1)',
+              pointerEvents: 'auto',
+              cursor:
+                currentPage === totalPages - 1 && currentChapter === document.chapters.length - 1
+                  ? 'default'
+                  : 'pointer',
               border: 'none',
             }}
           />
         </div>
       </div>
-      <div style={{ padding: '1rem', display: 'flex', justifyContent: 'space-between' }}>
-        <button onClick={goToPreviousChapter} disabled={currentChapter === 0}>
-          Previous Chapter
-        </button>
+      <div style={{ padding: '1rem', textAlign: 'center' }}>
         <span>
           {document.title} - Chapter {currentChapter + 1} (Page {currentPage + 1} of {totalPages})
         </span>
-        <button
-          onClick={goToNextChapter}
-          disabled={currentChapter === document.chapters.length - 1}
-        >
-          Next Chapter
-        </button>
       </div>
     </div>
   );
