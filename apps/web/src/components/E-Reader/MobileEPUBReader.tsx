@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useEPUBManifest } from '../../lib/queries';
 import { IframeBuilder } from './IFrameBuilder';
 import { useChapterNavigation } from '../../hooks/useChapterNavigation';
@@ -26,10 +26,12 @@ const fetchChapterContent = async (chapterPath: string): Promise<string> => {
 };
 
 export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }) => {
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const { data: document, isLoading } = useEPUBManifest(documentId);
-  const { currentChapter, error, setError, goToNextChapter, goToPreviousChapter } =
-    useChapterNavigation({ document });
+  const { data: document, isLoading: manifestLoading } = useEPUBManifest(documentId);
+  const { currentChapter, setError, goToNextChapter, goToPreviousChapter } = useChapterNavigation({
+    document,
+  });
 
   const { currentPage, totalPages, nextPage, prevPage, initialize } = usePagination({
     iframeRef,
@@ -103,12 +105,23 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
     }
   };
 
-  if (isLoading) {
-    return <div className="loading-state">Loading your book...</div>;
-  }
+  const handleToggleDarkMode = () => {
+    const newDarkMode = !isDarkMode;
+    setIsDarkMode(newDarkMode);
+    if (iframeRef.current?.contentDocument) {
+      const reader = iframeRef.current.contentDocument.getElementById('reader');
+      if (reader) {
+        if (newDarkMode) {
+          reader.classList.add('dark-mode');
+        } else {
+          reader.classList.remove('dark-mode');
+        }
+      }
+    }
+  };
 
-  if (error) {
-    return <div className="error-state">Error: {error}</div>;
+  if (manifestLoading) {
+    return <div className="loading-state">Loading your book...</div>;
   }
 
   if (!document) {
@@ -135,16 +148,27 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
           <button onClick={handlePrevPage} disabled={currentPage === 0 && currentChapter === 0} />
           <button
             onClick={handleNextPage}
-            disabled={
-              currentPage === totalPages - 1 && currentChapter === document.chapters.length - 1
-            }
+            disabled={currentPage === totalPages && currentChapter === document.chapters.length - 1}
           />
         </div>
       </div>
       <div className="reader-footer">
         <span>
-          {document.title} - Chapter {currentChapter + 1} (Page {currentPage + 1} of {totalPages})
+          {document.title} - Chapter {currentChapter + 1} (Page {currentPage} of {totalPages})
         </span>
+        <button
+          onClick={handleToggleDarkMode}
+          style={{
+            marginLeft: '1rem',
+            padding: '0.5rem',
+            border: 'none',
+            background: 'none',
+            cursor: 'pointer',
+            fontSize: '1.25rem',
+          }}
+        >
+          {isDarkMode ? '☀️' : '🌙'}
+        </button>
       </div>
     </div>
   );

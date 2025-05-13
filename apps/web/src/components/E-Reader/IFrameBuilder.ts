@@ -64,6 +64,10 @@ export class IframeBuilder {
 
   injectCustomStyles(): IframeBuilder {
     const customStyles = `
+      @import url('https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
+
       html, body {
         margin: 0;
         height: 100vh;
@@ -71,6 +75,9 @@ export class IframeBuilder {
         touch-action: pan-x;
         -webkit-text-size-adjust: none;
         text-size-adjust: none;
+        font-family: 'Literata', Georgia, serif;
+        line-height: 1.6;
+        font-size: 1rem!important;
       }
 
       #reader {
@@ -84,9 +91,11 @@ export class IframeBuilder {
         column-gap: 0;
         background-color: #fafafa;
         color: #2c3e50;
-        font-family: 'Literata', Georgia, serif;
-        line-height: 1.6;
-        font-size: 1rem!important;
+      }
+
+      #reader.dark-mode {
+        background-color: #000000;
+        color: #ffffff;
       }
 
       #reader > * {
@@ -94,7 +103,7 @@ export class IframeBuilder {
         word-break: break-word;
         overflow-wrap: break-word;
         hyphens: auto;
-        padding:0 16px;
+        padding: 0 16px;
       }
 
       /* Allow paragraphs to break across columns */
@@ -121,6 +130,15 @@ export class IframeBuilder {
         color: #1a202c;
       }
 
+      #reader.dark-mode h1, 
+      #reader.dark-mode h2, 
+      #reader.dark-mode h3, 
+      #reader.dark-mode h4, 
+      #reader.dark-mode h5, 
+      #reader.dark-mode h6 {
+        color: #ffffff;
+      }
+
       #reader h1 { font-size: 1.75rem; text-align: center; padding: 3rem; }
       #reader h2 { font-size: 1.5rem; }
       #reader h3 { font-size: 1.25rem; }
@@ -138,6 +156,12 @@ export class IframeBuilder {
         border-radius: 0 6px 6px 0;
       }
 
+      #reader.dark-mode blockquote {
+        border-left-color: #4a5568;
+        color: #e2e8f0;
+        background-color: #1a202c;
+      }
+
       #reader code {
         font-family: 'JetBrains Mono', 'Fira Code', monospace;
         font-size: 0.875em;
@@ -145,6 +169,11 @@ export class IframeBuilder {
         background-color: #f1f5f9;
         border-radius: 3px;
         color: #2d3748;
+      }
+
+      #reader.dark-mode code {
+        background-color: #1a202c;
+        color: #e2e8f0;
       }
 
       #reader pre {
@@ -177,9 +206,18 @@ export class IframeBuilder {
         transition: all 0.2s ease;
       }
 
+      #reader.dark-mode a {
+        color: #63b3ed;
+      }
+
       #reader a:hover {
         color: #2c5282;
         border-bottom-color: #2c5282;
+      }
+
+      #reader.dark-mode a:hover {
+        color: #90cdf4;
+        border-bottom-color: #90cdf4;
       }
 
       #reader ul, #reader ol {
@@ -201,9 +239,19 @@ export class IframeBuilder {
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
       }
 
+      #reader.dark-mode table {
+        background-color: #1a202c;
+        box-shadow: 0 1px 2px rgba(255, 255, 255, 0.1);
+      }
+
       #reader th, #reader td {
         padding: 0.75rem;
         border: 1px solid #e2e8f0;
+      }
+
+      #reader.dark-mode th, 
+      #reader.dark-mode td {
+        border-color: #4a5568;
       }
 
       #reader th {
@@ -212,8 +260,17 @@ export class IframeBuilder {
         color: #2d3748;
       }
 
+      #reader.dark-mode th {
+        background-color: #2d3748;
+        color: #e2e8f0;
+      }
+
       #reader tr:nth-child(even) {
         background-color: #f8fafc;
+      }
+
+      #reader.dark-mode tr:nth-child(even) {
+        background-color: #2d3748;
       }
 
       ::-webkit-scrollbar {
@@ -236,15 +293,25 @@ export class IframeBuilder {
         widows: 2;
         box-sizing: border-box;
       }
-
-      /* Add font imports */
-      @import url('https://fonts.googleapis.com/css2?family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&display=swap');
-      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
     `;
 
     this.styles.push(`data:text/css;base64,${btoa(customStyles)}`);
     return this;
+  }
+
+  toggleDarkMode(isDark: boolean): void {
+    if (!this.iframe.contentDocument) {
+      throw new Error('No contentDocument available');
+    }
+
+    const reader = this.iframe.contentDocument.getElementById('reader');
+    if (reader) {
+      if (isDark) {
+        reader.classList.add('dark-mode');
+      } else {
+        reader.classList.remove('dark-mode');
+      }
+    }
   }
 
   async build(): Promise<void> {
