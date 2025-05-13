@@ -118,6 +118,7 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
         }
       }
     }
+    window.document.body.classList.toggle('dark-mode', newDarkMode);
   };
 
   if (manifestLoading) {
@@ -130,7 +131,7 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
 
   return (
     <div
-      className="epub-reader"
+      className={`epub-reader ${isDarkMode ? 'dark-mode' : ''}`}
       style={{ height: '100%', display: 'flex', flexDirection: 'column' }}
     >
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>

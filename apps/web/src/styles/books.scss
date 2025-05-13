@@ -1,3 +1,16 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #fafafa;
+  color: #2c3e50;
+
+  &.dark-mode {
+    background-color: #000000;
+    color: #ffffff;
+  }
+}
+
 // Book List Styles
 .book-list {
   padding: 2rem;
@@ -85,6 +98,35 @@
   flex-direction: column;
   height: 100vh;
   background-color: #fafafa;
+
+  &.dark-mode {
+    background-color: #000000;
+
+    iframe {
+      background-color: #000000;
+      box-shadow: none;
+    }
+
+    .reader-footer {
+      background-color: #000000;
+      border-top: 1px solid #2d3748;
+      color: #ffffff;
+    }
+
+    .navigation-overlay {
+      background: linear-gradient(
+        to right,
+        rgba(0, 0, 0, 0.1) 0%,
+        transparent 20%,
+        transparent 80%,
+        rgba(0, 0, 0, 0.1) 100%
+      );
+
+      button:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+    }
+  }
 
   iframe {
     background-color: white;
