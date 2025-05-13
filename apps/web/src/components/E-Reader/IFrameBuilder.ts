@@ -23,40 +23,23 @@ export class IframeBuilder {
       throw new Error('No contentDocument available');
     }
 
-    console.log('Starting document processing');
-
     // Get the HTML content
     let html = doc.documentElement.innerHTML;
-    console.log('Original HTML length:', html.length);
 
-    // Log all paragraphs to see what we're dealing with
+    // Find all paragraphs
     const allParagraphs = html.match(/<p[^>]*>.*?<\/p>/g) || [];
-    console.log('Found paragraphs:', allParagraphs.length);
-    allParagraphs.forEach((p, i) => {
-      console.log(`Paragraph ${i}:`, p);
-    });
 
-    // Try to find the specific nbsp paragraphs
+    // Find paragraphs containing nbsp
     const nbspParagraphs = allParagraphs.filter(
-      (p) =>
-        p.includes('&amp;nbsp;') ||
-        p.includes('&nbsp;') ||
-        p.match(/<p[^>]*>\s*<\/p>/) ||
-        p.includes('\u00A0'),
+      (p) => p.includes('&amp;nbsp;') || p.includes('&nbsp;') || p.includes('\u00A0'),
     );
-    console.log('Found nbsp paragraphs:', nbspParagraphs.length);
-    nbspParagraphs.forEach((p, i) => {
-      console.log(`Nbsp paragraph ${i}:`, p);
-    });
 
-    // Replace each nbsp paragraph individually
+    // Replace each nbsp paragraph with br
     nbspParagraphs.forEach((p) => {
-      const escapedP = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // Escape special regex chars
+      const escapedP = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const pattern = new RegExp(escapedP, 'g');
       html = html.replace(pattern, '<br />');
     });
-
-    console.log('After replacement HTML length:', html.length);
 
     // Create reader wrapper
     const reader = this.iframe.contentDocument.createElement('div');
@@ -64,7 +47,6 @@ export class IframeBuilder {
 
     // Set the processed HTML
     this.iframe.contentDocument.documentElement.innerHTML = html;
-    console.log('HTML set to iframe');
 
     // Move content into reader
     while (this.iframe.contentDocument.body.firstChild) {
