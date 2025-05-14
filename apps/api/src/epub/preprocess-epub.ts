@@ -24,6 +24,12 @@ interface SpineItem {
   linear?: string;
 }
 
+interface GuideReference {
+  type: string;
+  title?: string;
+  href: string;
+}
+
 interface OPFData {
   metadata: {
     title?: string;
@@ -32,6 +38,7 @@ interface OPFData {
   };
   manifest: ManifestItem[];
   spine: SpineItem[];
+  guide?: GuideReference[];
 }
 
 // Initialize database connection
@@ -354,11 +361,26 @@ async function parseOPF(content: string): Promise<OPFData & { coverHref?: string
     }
   });
 
+  // Parse guide
+  const guide: GuideReference[] = [];
+  $('guide > reference').each((_, el) => {
+    const href = $(el).attr('href');
+    const type = $(el).attr('type');
+    if (href && type) {
+      guide.push({
+        type: type,
+        title: $(el).attr('title') || undefined,
+        href: href,
+      });
+    }
+  });
+
   return {
     metadata,
     manifest,
     spine,
     coverHref,
+    guide,
   };
 }
 
@@ -411,16 +433,16 @@ async function preprocessEPUB(filePath: string) {
     const opfContent = await fs.readFile(opfPath, 'utf-8');
 
     // Parse OPF
-    const { metadata, manifest, spine, coverHref } = await parseOPF(opfContent);
+    const { metadata, manifest, spine, coverHref, guide } = await parseOPF(opfContent);
 
-    // Create document in database
-    const timestamp = Date.now();
-    const manifestUrl = `${STATIC_BASE_URL}/epub/${path.basename(
-      outputDir,
-    )}/manifest-${timestamp}.json`;
+    // Create document in database (Reverted to original logic: always create)
+    const manifestTimestamp = Date.now();
+    const manifestFileName = `manifest-${manifestTimestamp}.json`;
+    const manifestUrl = `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/${manifestFileName}`;
+
     const document = await epubService.createDocument(
-      String(metadata.title ?? path.basename(filePath, '.epub')),
-      String(metadata.creator ?? 'Unknown Author'),
+      metadata.title || path.basename(filePath, '.epub'),
+      metadata.creator || 'Unknown Author',
       manifestUrl,
     );
 
@@ -488,18 +510,31 @@ async function preprocessEPUB(filePath: string) {
       ),
       cover: coverHref
         ? `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/${coverHref}`
-        : `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Images/default-cover.png`,
+        : `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/images/cover.jpeg`,
+      guide: guide?.map((g) => ({
+        ...g,
+        href: g.href
+          ? `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Text/${path.basename(
+              g.href,
+            )}`
+          : '',
+      })),
       createdAt: new Date().toISOString(),
     };
 
     // Write manifest
-    const manifestPath = path.join(outputDir, `manifest-${timestamp}.json`);
+    const manifestPath = path.join(outputDir, manifestFileName);
     await fs.writeFile(manifestPath, JSON.stringify(epubManifest, null, 2));
     console.log('\nManifest written to:', manifestPath);
     console.log('\nAll processed files are in:', outputDir);
     console.log('\nBook directory name:', path.basename(outputDir));
 
-    return outputDir;
+    return {
+      manifestPath,
+      epubDir: outputDir,
+      opfPath,
+      chaptersDir,
+    };
   } catch (error) {
     console.error('Error preprocessing EPUB:', error);
     throw error;
@@ -518,8 +553,11 @@ async function main() {
   const epubPath = process.argv[2];
 
   try {
-    const outputDir = await preprocessEPUB(epubPath);
-    console.log('Successfully processed EPUB. Output directory:', outputDir);
+    const { manifestPath, epubDir, opfPath, chaptersDir } = await preprocessEPUB(epubPath);
+    console.log('Successfully processed EPUB. Output directory:', epubDir);
+    console.log('Manifest path:', manifestPath);
+    console.log('OPF path:', opfPath);
+    console.log('Chapters directory:', chaptersDir);
   } catch (error) {
     console.error('Error:', error instanceof Error ? error.message : String(error));
     process.exit(1);
