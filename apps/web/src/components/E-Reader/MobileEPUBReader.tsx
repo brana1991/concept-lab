@@ -29,6 +29,7 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
   const [isDarkMode, setIsDarkMode] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const { data: document, isLoading: manifestLoading } = useEPUBManifest(documentId);
+
   const { currentChapter, setError, goToNextChapter, goToPreviousChapter } = useChapterNavigation({
     document,
   });
@@ -48,26 +49,62 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
     }
 
     const documentCss = document.css;
-    const chapterPath = document?.chapters[currentChapter];
+    const chapterPath = document.chapters?.[currentChapter];
     const iframe: HTMLIFrameElement = iframeRef.current;
 
     const loadChapter = async () => {
+      if (!chapterPath) {
+        logDebug('Chapter path is undefined for currentChapter index, cannot load.', {
+          currentChapter,
+          chapters: document.chapters,
+        });
+        setError('Chapter path is undefined.');
+        return;
+      }
+
+      // Determine if the current chapter is a special guide page
+      let isGuidePage = false;
+      if (document.guide && document.guide.length > 0 && chapterPath) {
+        try {
+          isGuidePage = document.guide.some((guideItem) => {
+            if (guideItem.href) {
+              // Ensure we are comparing pathnames
+              const guidePathname = new URL(guideItem.href).pathname;
+              return guidePathname === chapterPath;
+            }
+            return false;
+          });
+        } catch (e) {
+          console.error('Error parsing guide item href for comparison:', e);
+          isGuidePage = false; // Default to false if URL parsing fails
+        }
+      }
+      logDebug('Page type check', { chapterPath, isGuidePage, guideItems: document.guide });
+
       try {
-        logDebug('Loading chapter', { chapterPath, currentChapter });
+        logDebug('Loading chapter', { chapterPath, currentChapter, isGuidePage });
         setError(null);
         const chapterHtml = await fetchChapterContent(chapterPath);
         const chapterDoc = new DOMParser().parseFromString(chapterHtml, 'application/xhtml+xml');
 
         logDebug('Building iframe content');
-        await new IframeBuilder(iframe)
-          .copyHtmlToIframe(chapterDoc)
-          .injectPublisherStyles(documentCss)
-          .injectCustomStyles()
-          .build();
+        const builder = new IframeBuilder(iframe);
+        builder.copyHtmlToIframe(chapterDoc);
+
+        if (!isGuidePage && documentCss && documentCss.length > 0) {
+          logDebug('Injecting publisher styles', { documentCss });
+          builder.injectPublisherStyles(documentCss);
+        } else {
+          logDebug('Skipping publisher styles.', {
+            isGuidePage,
+            hasDocumentCss: !!(documentCss && documentCss.length > 0),
+          });
+        }
+
+        builder.injectCustomStyles().build();
 
         logDebug('Chapter loaded successfully');
 
-        // Initialize pagination after content is loaded
         const cleanup = initialize();
         return () => {
           cleanup?.();
@@ -84,23 +121,21 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
   const handlePrevPage = () => {
     logDebug('Previous page button clicked', { currentPage, totalPages });
     if (currentPage === 0 && currentChapter > 0) {
-      // If we're at the first page of the current chapter and there's a previous chapter,
-      // go to the previous chapter
       goToPreviousChapter();
     } else {
-      // Otherwise just go to the previous page
       prevPage();
     }
   };
 
   const handleNextPage = () => {
     logDebug('Next page button clicked', { currentPage, totalPages });
-    if (currentPage === totalPages - 1 && currentChapter < (document?.chapters.length ?? 0) - 1) {
-      // If we're at the last page of the current chapter and there's a next chapter,
-      // go to the next chapter
+    if (
+      currentPage === totalPages - 1 &&
+      document?.chapters &&
+      currentChapter < document.chapters.length - 1
+    ) {
       goToNextChapter();
     } else {
-      // Otherwise just go to the next page
       nextPage();
     }
   };
@@ -149,7 +184,11 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
           <button onClick={handlePrevPage} disabled={currentPage === 0 && currentChapter === 0} />
           <button
             onClick={handleNextPage}
-            disabled={currentPage === totalPages && currentChapter === document.chapters.length - 1}
+            disabled={
+              currentPage === totalPages &&
+              document?.chapters &&
+              currentChapter === document.chapters.length - 1
+            }
           />
         </div>
       </div>

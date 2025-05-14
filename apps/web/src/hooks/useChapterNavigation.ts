@@ -1,7 +1,7 @@
 import { useState } from 'react';
 
 interface Chapter {
-  title: string;
+  title?: string;
   chapters: string[];
   css: string[];
 }

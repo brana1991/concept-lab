@@ -26,12 +26,34 @@ export interface Document {
 
 export interface EPUBDocument {
   id: number;
-  title: string;
-  author: string;
-  epubPath: string;
+  title?: string;
+  author?: string;
+  epubPath?: string;
   chapters: string[];
   css: string[];
-  cover: string;
+  cover?: string;
+  highlights?: Highlight[];
+  notes?: Note[];
+  guide?: {
+    type: string;
+    title?: string;
+    href: string;
+  }[];
+  createdAt: string;
+}
+
+export interface Highlight {
+  id: string;
+  chapterHref: string;
+  cfiRange: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface Note {
+  id: string;
+  highlightId: string;
+  text: string;
   createdAt: string;
 }
 
