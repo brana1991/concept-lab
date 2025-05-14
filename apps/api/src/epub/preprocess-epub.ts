@@ -268,7 +268,7 @@ async function findStylesFiles(baseDir: string): Promise<string[]> {
   }
 }
 
-async function parseOPF(content: string): Promise<OPFData> {
+async function parseOPF(content: string): Promise<OPFData & { coverHref?: string }> {
   const $ = cheerio.load(content, { xmlMode: true });
 
   // Parse metadata
@@ -276,6 +276,20 @@ async function parseOPF(content: string): Promise<OPFData> {
     title: $('metadata > dc\\:title').first().text() || undefined,
     creator: $('metadata > dc\\:creator').first().text() || undefined,
   };
+
+  let coverHref: string | undefined = undefined;
+
+  // Try to find cover from <meta name="cover" content="id" />
+  const coverMeta = $('metadata > meta[name="cover"]');
+  if (coverMeta.length > 0) {
+    const coverId = coverMeta.attr('content');
+    if (coverId) {
+      const coverItem = $(`manifest > item[id="${coverId}"]`);
+      if (coverItem.length > 0) {
+        coverHref = coverItem.attr('href');
+      }
+    }
+  }
 
   // Parse manifest
   const manifest: ManifestItem[] = [];
@@ -285,6 +299,7 @@ async function parseOPF(content: string): Promise<OPFData> {
     const href = $el.attr('href');
     const mediaType = $el.attr('media-type');
     const title = $el.attr('title');
+    const properties = $el.attr('properties');
 
     if (id && mediaType) {
       manifest.push({
@@ -293,6 +308,22 @@ async function parseOPF(content: string): Promise<OPFData> {
         'media-type': mediaType,
         title: title || undefined,
       });
+    }
+
+    // If coverHref is not found yet, try to find it from properties="cover-image"
+    if (!coverHref && properties && properties.includes('cover-image')) {
+      coverHref = href;
+    }
+
+    // Fallback: if still not found, and href contains "cover" and is an image type
+    if (
+      !coverHref &&
+      href &&
+      mediaType &&
+      mediaType.startsWith('image/') &&
+      href.toLowerCase().includes('cover.')
+    ) {
+      coverHref = href;
     }
   });
 
@@ -327,6 +358,7 @@ async function parseOPF(content: string): Promise<OPFData> {
     metadata,
     manifest,
     spine,
+    coverHref,
   };
 }
 
@@ -379,7 +411,7 @@ async function preprocessEPUB(filePath: string) {
     const opfContent = await fs.readFile(opfPath, 'utf-8');
 
     // Parse OPF
-    const { metadata, manifest, spine } = await parseOPF(opfContent);
+    const { metadata, manifest, spine, coverHref } = await parseOPF(opfContent);
 
     // Create document in database
     const timestamp = Date.now();
@@ -454,7 +486,9 @@ async function preprocessEPUB(filePath: string) {
       css: cssFiles.map(
         (file) => `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Styles/${file}`,
       ),
-      cover: `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Images/cover.jpg`,
+      cover: coverHref
+        ? `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/${coverHref}`
+        : `${STATIC_BASE_URL}/epub/${path.basename(outputDir)}/OEBPS/Images/default-cover.png`,
       createdAt: new Date().toISOString(),
     };
 

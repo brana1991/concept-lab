@@ -1,5 +1,5 @@
 import React from 'react';
-import { EPUBDocument } from '../lib/api';
+import { EPUBDocument, STATIC_BASE_URL } from '../lib/api';
 
 interface BookListProps {
   books: EPUBDocument[];
@@ -7,27 +7,40 @@ interface BookListProps {
 }
 
 export const BookList: React.FC<BookListProps> = ({ books, onSelectBook }) => {
+  console.log('Books data:', books);
+
+  const getCoverUrl = (cover: string) => {
+    console.log('Processing cover URL:', cover);
+    if (!cover) return '';
+    if (cover.startsWith('http')) return cover;
+    return `${STATIC_BASE_URL}${cover}`;
+  };
+
   return (
     <div className="book-list">
       <h1 className="book-list-title">Your Library</h1>
       <div className="book-grid">
-        {books.map((book) => (
-          <div key={book.id} className="book-card" onClick={() => onSelectBook(book.id)}>
-            <div className="book-cover">
-              {book.cover ? (
-                <img src={book.cover} alt={`Cover of ${book.title}`} />
-              ) : (
-                <div className="book-cover-placeholder">
-                  <span>{book.title.charAt(0)}</span>
-                </div>
-              )}
+        {books.map((book) => {
+          console.log('Book cover:', book.cover);
+          return (
+            <div key={book.id} className="book-card" onClick={() => onSelectBook(book.id)}>
+              <div
+                className="book-cover"
+                style={{
+                  backgroundImage: book.cover ? `url(${getCoverUrl(book.cover)})` : 'none',
+                }}
+              >
+                {!book.cover && (
+                  <div className="book-cover-placeholder">{book.title.charAt(0)}</div>
+                )}
+              </div>
+              <div className="book-info">
+                <h2 className="book-title">{book.title}</h2>
+                <p className="book-author">{book.author}</p>
+              </div>
             </div>
-            <div className="book-info">
-              <h2 className="book-title">{book.title}</h2>
-              <p className="book-author">{book.author}</p>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

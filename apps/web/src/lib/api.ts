@@ -70,7 +70,22 @@ export const api = {
   getEPUBDocuments: async (): Promise<EPUBDocument[]> => {
     const response = await fetch(`${API_BASE_URL}/epub/documents`);
     if (!response.ok) throw new Error('Failed to fetch documents');
-    return response.json();
+    const documents = await response.json();
+
+    // Fetch manifests for each document
+    const documentsWithManifests = await Promise.all(
+      documents.map(async (doc: { id: number; manifest_url: string }) => {
+        const manifestUrl = new URL(doc.manifest_url);
+        const manifestResponse = await fetch(manifestUrl.pathname);
+        if (!manifestResponse.ok) return doc;
+        const manifest = await manifestResponse.json();
+        // Encode the cover URL to handle spaces and other special characters
+        const encodedCoverUrl = manifest.cover ? encodeURI(manifest.cover) : null;
+        return { ...doc, cover: encodedCoverUrl };
+      }),
+    );
+
+    return documentsWithManifests;
   },
 
   getEpubManifest: async (id: number): Promise<EPUBDocument> => {
@@ -85,6 +100,7 @@ export const api = {
     if (!manifestResponse.ok)
       throw new Error('Failed to fetch manifest for document with id: ' + id);
     const manifest = await manifestResponse.json();
+    console.log('Manifest data:', manifest);
 
     // Convert any absolute URLs in the manifest to relative URLs
     if (manifest.chapters) {
