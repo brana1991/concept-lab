@@ -1,5 +1,5 @@
 import React from 'react';
-import { EPUBDocument, STATIC_BASE_URL } from '../lib/api';
+import { EPUBDocument } from '../lib/api';
 
 interface BookListProps {
   books: EPUBDocument[];
@@ -12,8 +12,8 @@ export const BookList: React.FC<BookListProps> = ({ books, onSelectBook }) => {
   const getCoverUrl = (cover: string) => {
     console.log('Processing cover URL:', cover);
     if (!cover) return '';
-    if (cover.startsWith('http')) return cover;
-    return `${STATIC_BASE_URL}${cover}`;
+    // Assuming book.cover from the manifest is already a full, URI-encoded URL
+    return cover;
   };
 
   return (
@@ -21,17 +21,17 @@ export const BookList: React.FC<BookListProps> = ({ books, onSelectBook }) => {
       <h1 className="book-list-title">Your Library</h1>
       <div className="book-grid">
         {books.map((book) => {
-          console.log('Book cover:', book.cover);
+          console.log('Book cover URL for styling:', book.cover ? getCoverUrl(book.cover) : 'none');
           return (
             <div key={book.id} className="book-card" onClick={() => onSelectBook(book.id)}>
               <div
                 className="book-cover"
                 style={{
-                  backgroundImage: book.cover ? `url(${getCoverUrl(book.cover)})` : 'none',
+                  backgroundImage: book.cover ? `url("${getCoverUrl(book.cover)}")` : 'none',
                 }}
               >
                 {!book.cover && (
-                  <div className="book-cover-placeholder">{book.title.charAt(0)}</div>
+                  <div className="book-cover-placeholder">{book?.title?.charAt(0)}</div>
                 )}
               </div>
               <div className="book-info">
