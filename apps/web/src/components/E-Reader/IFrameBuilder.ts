@@ -126,7 +126,7 @@ export class IframeBuilder {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         font-weight: 600;
         line-height: 1.3;
-        margin: 1.5rem 0 0.75rem;
+         margin: 1.5rem 0 0.75rem;
         color: #1a202c;
       }
 
@@ -139,10 +139,10 @@ export class IframeBuilder {
         color: #ffffff;
       }
 
-      #reader h1 { font-size: 1.75rem; text-align: center; padding: 3rem; }
-      #reader h2 { font-size: 1.5rem; }
-      #reader h3 { font-size: 1.25rem; }
-      #reader h4 { font-size: 1.125rem; }
+      #reader h1 { font-size: 1.75rem; text-align: center; padding-top: 3rem; }
+      #reader h2 { font-size: 1.5rem; padding-top: 1rem; }
+      #reader h3 { font-size: 1.25rem; padding-top: 1rem; }
+      #reader h4 { font-size: 1.125rem }
       #reader h5 { font-size: 1rem; }
       #reader h6 { font-size: 0.875rem; }
 

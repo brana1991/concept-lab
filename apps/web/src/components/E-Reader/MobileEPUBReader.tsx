@@ -62,46 +62,19 @@ export const MobileEPUBReader: React.FC<MobileEPUBReaderProps> = ({ documentId }
         return;
       }
 
-      // Determine if the current chapter is a special guide page
-      let isGuidePage = false;
-      if (document.guide && document.guide.length > 0 && chapterPath) {
-        try {
-          isGuidePage = document.guide.some((guideItem) => {
-            if (guideItem.href) {
-              // Ensure we are comparing pathnames
-              const guidePathname = new URL(guideItem.href).pathname;
-              return guidePathname === chapterPath;
-            }
-            return false;
-          });
-        } catch (e) {
-          console.error('Error parsing guide item href for comparison:', e);
-          isGuidePage = false; // Default to false if URL parsing fails
-        }
-      }
-      logDebug('Page type check', { chapterPath, isGuidePage, guideItems: document.guide });
-
       try {
-        logDebug('Loading chapter', { chapterPath, currentChapter, isGuidePage });
+        logDebug('Loading chapter', { chapterPath, currentChapter });
         setError(null);
         const chapterHtml = await fetchChapterContent(chapterPath);
         const chapterDoc = new DOMParser().parseFromString(chapterHtml, 'application/xhtml+xml');
 
         logDebug('Building iframe content');
-        const builder = new IframeBuilder(iframe);
-        builder.copyHtmlToIframe(chapterDoc);
 
-        if (!isGuidePage && documentCss && documentCss.length > 0) {
-          logDebug('Injecting publisher styles', { documentCss });
-          builder.injectPublisherStyles(documentCss);
-        } else {
-          logDebug('Skipping publisher styles.', {
-            isGuidePage,
-            hasDocumentCss: !!(documentCss && documentCss.length > 0),
-          });
-        }
-
-        builder.injectCustomStyles().build();
+        new IframeBuilder(iframe)
+          .copyHtmlToIframe(chapterDoc)
+          .injectPublisherStyles(documentCss)
+          .injectCustomStyles()
+          .build();
 
         logDebug('Chapter loaded successfully');
 
